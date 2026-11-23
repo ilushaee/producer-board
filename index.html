@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="ru" data-remote>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1b1726">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+<title>Продюсерский центр</title>
+<style>
+:root {
+  color-scheme: dark;
+  --ink: #f5f3fa; --ink-2: #bdb8c9; --ink-3: #958fa6;
+  --glass: rgba(255, 255, 255, .06); --glass-2: rgba(255, 255, 255, .10); --line: rgba(255, 255, 255, .12);
+  --solid: #262131; --accent: #2f5bff; --accent-2: #4a74ff; --bad: #ff9c9c;
+  --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23c3c2b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: #26235c; }
+body { margin: 0; min-height: 100dvh; padding: 24px; color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; background:
+  radial-gradient(60% 70% at 88% 12%, #3f86c4 0, transparent 70%),
+  radial-gradient(55% 60% at 8% 8%, #5b3a93 0, transparent 70%),
+  radial-gradient(70% 60% at 20% 100%, #3467a8 0, transparent 70%),
+  radial-gradient(50% 60% at 75% 95%, #2c5f86 0, transparent 70%), #2b2a6b; }
+a { color: inherit; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid #8fb0ff; outline-offset: 2px; }
+main { min-width: 0; }
+main:focus-visible { outline: none; }
+.ico { display: inline-flex; flex: none; }
+.bad { color: var(--bad); }
+.grow { flex: 1; }
+.label { color: var(--ink-2); font-size: 13px; }
+.empty { color: var(--ink-3); font-weight: 400; }
+.hint { margin: 0; color: var(--ink-2); font-size: 13px; }
+
+/* ---------- окно ---------- */
+.shell { display: grid; grid-template-columns: 96px minmax(0, 1fr); max-width: 1560px; min-height: calc(100dvh - 48px); margin: 0 auto; border: 5px solid rgba(255, 255, 255, .16); border-radius: 30px;
+  background: radial-gradient(60% 50% at 100% 100%, rgba(38, 92, 84, .5), transparent 70%), radial-gradient(50% 45% at 0 100%, rgba(92, 38, 58, .55), transparent 70%), rgba(27, 23, 38, .93); }
+.side { position: sticky; top: 24px; align-self: start; height: calc(100dvh - 58px); display: flex; flex-direction: column; align-items: center; padding: 22px 0; }
+.logo { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; }
+#nav { display: grid; gap: 14px; margin-block: auto; }
+#nav a { display: grid; justify-items: center; gap: 6px; width: 76px; padding: 12px 4px; border-radius: 26px; color: var(--ink-2); font-size: 12px; text-decoration: none; }
+#nav a:hover { color: var(--ink); background: var(--glass); }
+#nav a[aria-current] { color: var(--ink); background: var(--glass-2); font-weight: 600; }
+.nav-ico { position: relative; display: inline-flex; }
+.badge { position: absolute; top: -8px; left: 13px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #d81f5c; color: #fff; font: 700 11px/18px system-ui, sans-serif; text-align: center; }
+main { padding: 22px 22px 100px 0; }
+
+/* ---------- шапка ---------- */
+.hero { border-radius: 24px; background: var(--glass); overflow: hidden; }
+.banner { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; min-height: 128px; padding: 22px 24px; background: #3438c9; }
+.banner::before { content: ''; position: absolute; inset: 0; z-index: -1; background:
+  radial-gradient(38% 130% at 62% 120%, rgba(150, 120, 255, .85), transparent 62%),
+  radial-gradient(30% 150% at 84% -10%, rgba(166, 132, 255, .7), transparent 65%),
+  conic-gradient(from 205deg at 66% -30%, transparent 0 8%, rgba(96, 120, 255, .75) 16%, transparent 24% 33%, rgba(180, 150, 255, .5) 40%, transparent 48%),
+  linear-gradient(100deg, #27279a, #3b46e0 45%, #4b46d6); }
+.crumbs { margin: 0 0 6px; font-size: 13px; color: #dcdcff; }
+.crumbs a { text-underline-offset: 3px; }
+.banner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+h1 { margin: 0; font-size: 28px; line-height: 1.15; letter-spacing: -.01em; overflow-wrap: anywhere; }
+h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.banner .btn { min-height: 34px; background: rgba(20, 18, 70, .42); border-color: transparent; }
+.banner .btn:hover { background: rgba(20, 18, 70, .62); }
+.banner-side { margin-left: auto; font-weight: 600; }
+.strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 36px; padding: 16px 24px; }
+.meta { display: grid; gap: 4px; align-content: start; }
+.val { display: flex; align-items: center; min-height: 34px; }
+.big { font-size: 20px; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; text-underline-offset: 4px; }
+.big .empty { font-size: 16px; }
+.members { display: grid; gap: 4px; margin-left: auto; }
+.names { display: flex; flex-wrap: wrap; gap: 6px; }
+.name { min-height: 34px; padding: 0 13px; border: 0; border-radius: 17px; background: var(--glass-2); }
+.name:hover { background: rgba(255, 255, 255, .18); }
+.name[aria-pressed=true] { background: var(--ink); color: #1b1726; font-weight: 600; }
+
+/* ---------- кнопки и поля ---------- */
+.toolbar, .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.toolbar { margin: 18px 2px; }
+.toolbar > b { font-size: 17px; margin-right: 4px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: 20px; background: var(--glass-2); }
+.btn:hover { background: rgba(255, 255, 255, .16); }
+.btn.main { background: var(--accent); color: #fff; font-weight: 600; }
+.btn.main:hover { background: #2149e0; }
+.btn.danger { color: var(--bad); }
+.field, select { min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background-color: var(--glass); min-width: 0; max-width: 100%; }
+select { appearance: none; padding-right: 36px; background-image: var(--arrow); background-repeat: no-repeat; background-position: right 14px center; text-overflow: ellipsis; cursor: pointer; }
+option, optgroup { background: var(--solid); color: var(--ink); }
+.strip select { min-height: 34px; border-radius: 17px; }
+.search { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink-2); }
+.search input { width: 150px; min-width: 0; border: 0; outline: 0; background: none; color: var(--ink); }
+.search input::placeholder { color: var(--ink-3); }
+.search:focus-within { outline: 2px solid #8fb0ff; outline-offset: 2px; }
+.switch { display: flex; padding: 3px; border-radius: 20px; background: var(--glass-2); }
+.switch button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border: 0; border-radius: 17px; background: none; color: var(--ink-2); }
+.switch button[aria-pressed=true] { background: var(--ink); color: #1b1726; font-weight: 600; }
+.link { min-height: 36px; padding: 0 6px; border: 0; background: none; color: #a9c0ff; text-decoration: underline; text-underline-offset: 3px; }
+.panel { display: grid; gap: 12px; margin-bottom: 16px; padding: 16px 18px; border-radius: 18px; background: var(--glass); justify-items: start; }
+.fgroup { display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: start; }
+.fgroup .label { padding-top: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.chips.summary { margin-bottom: 16px; }
+.chip { min-height: 36px; max-width: 100%; padding: 4px 14px; border: 1px solid var(--line); border-radius: 18px; background: none; overflow-wrap: anywhere; text-align: left; }
+.chip:hover { background: var(--glass-2); }
+.chip[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: #1b1726; }
+.blank { padding: 28px; border: 1px dashed var(--line); border-radius: 18px; color: var(--ink-2); text-align: center; }
+
+/* ---------- цвета проектов ---------- */
+.p0 { --c: #c9c4d6; --g1: #3a3444; --g2: #544c62; }
+.p1 { --c: #a9b2ff; --g1: #2d2fa8; --g2: #5a50e0; } .p2 { --c: #7fd3f5; --g1: #14557f; --g2: #2b7fb0; } .p3 { --c: #dcaaf5; --g1: #6d2f86; --g2: #9a4fb5; }
+.p4 { --c: #ff9fbe; --g1: #7d2f55; --g2: #ad4a72; } .p5 { --c: #86e0bd; --g1: #17604f; --g2: #2a8069; } .p6 { --c: #f6bf6b; --g1: #7a4420; --g2: #a3622f; }
+
+/* ---------- доска ---------- */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(226px, 1fr); gap: 14px; overflow-x: auto; margin-inline: -6px; padding: 6px 6px 14px; scroll-padding-inline: 6px; }
+.col { min-height: 260px; padding: 8px; border-radius: 20px; background: rgba(255, 255, 255, .045); }
+.col-head { display: flex; align-items: center; gap: 8px; padding: 4px 2px 8px 8px; }
+.col h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.count { min-width: 22px; padding: 1px 7px; border-radius: 8px; background: var(--glass-2); font-size: 12px; font-weight: 600; text-align: center; }
+.plus { display: grid; place-items: center; width: 34px; height: 34px; margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: none; }
+.plus:hover { background: var(--glass-2); }
+.cards-list { display: grid; gap: 6px; align-content: start; }
+.col > .hint { padding: 8px; }
+.kcard { padding: 11px 12px; border-radius: 14px; background: #3a3444; cursor: grab; transition: transform .12s; }
+.kcard:hover { transform: translateY(-2px); background: #443d50; }
+.kcard.moving { opacity: .4; }
+.kcard.saving { opacity: .6; cursor: progress; }
+.kcard.done { opacity: .62; }
+.kcard.done:hover, .kcard.done:focus-visible { opacity: 1; }
+.kcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.when { display: flex; align-items: flex-start; gap: 6px; min-width: 0; padding-top: 2px; color: var(--ink-2); font-size: 12.5px; line-height: 1.3; }
+.when.bad { color: var(--bad); }
+.proj { flex: 0 1 auto; max-width: 55%; padding: 2px 9px; border-radius: 9px; background: var(--c); color: #17121f; font-size: 12.5px; font-weight: 650; overflow-wrap: anywhere; }
+.kcard .t { margin: 8px 0; font-weight: 550; line-height: 1.3; overflow-wrap: anywhere; }
+.kcard .m { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.gap { height: 4px; border-radius: 2px; background: #fff; }
+
+/* ---------- календарь ---------- */
+.cal-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cal-head h3 { margin: 0 2px; font-size: 18px; }
+.cal-scroll { overflow-x: auto; border-radius: 20px; background: rgba(255, 255, 255, .045); }
+.cal-grid { min-width: 820px; }
+.cal-days { display: grid; grid-template-columns: repeat(7, 1fr); color: var(--ink-2); font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.cal-days div { padding: 10px 12px; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); min-height: 108px; }
+.day { cursor: pointer; }
+.day + .day { border-left: 1px solid rgba(255, 255, 255, .07); }
+.day:hover { background: rgba(255, 255, 255, .04); }
+.day.out { background: rgba(0, 0, 0, .18); }
+.day.target { background: rgba(90, 130, 255, .35); }
+.daynum { z-index: 1; justify-self: start; align-self: center; min-width: 26px; height: 26px; margin-left: 7px; padding: 0 5px; border: 0; border-radius: 13px; background: none; font-size: 14px; }
+.daynum:hover { background: var(--glass-2); }
+.daynum.out { color: var(--ink-3); }
+.daynum.now { background: var(--accent); color: #fff; font-weight: 700; }
+.bar { z-index: 1; display: flex; background: var(--c); color: #17121f; align-items: center; min-width: 0; height: 26px; margin: 1px 4px 3px; padding: 0 9px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: grab; user-select: none; }
+.bar span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bar:hover { filter: brightness(1.07); }
+.bar.moving { opacity: .4; }
+.bar.done { opacity: .55; }
+.bar.done span { text-decoration: line-through; }
+.bar.cut-l { margin-left: 0; border-radius: 0 8px 8px 0; }
+.bar.cut-r { margin-right: 0; border-radius: 8px 0 0 8px; }
+.bar.cut-l.cut-r { border-radius: 0; }
+.bar.loose { max-width: 300px; margin: 0; }
+.bar.late::before { content: '!'; flex: none; display: grid; place-items: center; width: 16px; height: 16px; margin: 0 7px 0 -3px; border-radius: 50%; background: #b3122f; color: #fff; font-size: 11px; font-weight: 800; }
+.undated { margin-top: 22px; }
+.undated h3 { margin: 0; font-size: 15px; }
+.undated .chips { margin-top: 10px; }
+
+/* ---------- главная ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card { display: block; border-radius: 20px; background: var(--glass); overflow: hidden; text-decoration: none; transition: transform .12s; }
+.card:hover { transform: translateY(-3px); background: var(--glass-2); }
+.card-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; min-height: 84px; padding: 14px 16px; background: radial-gradient(70% 140% at 85% -10%, rgba(255, 255, 255, .28), transparent 60%), linear-gradient(110deg, var(--g1), var(--g2)); }
+.pill { flex: none; padding: 3px 10px; border-radius: 12px; background: rgba(10, 8, 30, .4); font-size: 12px; }
+.card-body { padding: 14px 16px 16px; }
+.foot { margin: 8px 0 0; color: var(--ink-2); font-size: 14px; }
+
+/* ---------- настройки ---------- */
+.section { margin-top: 28px; }
+.head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin: 0 2px 12px; }
+.head p { margin: 4px 0 0; color: var(--ink-2); }
+.lines { border-radius: 18px; background: var(--glass); overflow: hidden; }
+.line { display: grid; gap: 4px 16px; align-items: center; width: 100%; padding: 12px 16px; border: 0; background: none; text-align: left; overflow-wrap: anywhere; }
+.line + .line { border-top: 1px solid rgba(255, 255, 255, .08); }
+.line:hover { background: var(--glass); }
+.line:focus-visible { outline-offset: -3px; }
+.line b { display: flex; align-items: center; gap: 10px; }
+.line > span { color: var(--ink-2); }
+.fns .line > span:first-child { color: var(--ink); }
+.line .hint { display: block; }
+.people .line { grid-template-columns: 1fr 1fr 1.2fr 1.2fr 1fr; }
+.fns .line { grid-template-columns: 2fr 1fr 1fr; }
+.dept { margin-top: 6px; }
+.dept > summary, .pick > summary { padding: 10px 4px; cursor: pointer; }
+.dept .count, .pick .count { margin-left: 10px; }
+
+/* ---------- окна ---------- */
+dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; border: 1px solid var(--line); border-radius: 24px; background: var(--solid); color: var(--ink); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+dialog::backdrop { background: rgba(12, 10, 30, .62); backdrop-filter: blur(5px); }
+dialog form { display: grid; gap: 14px; }
+dialog label { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
+dialog .field, dialog select { width: 100%; font-size: 16px; color: var(--ink); }
+dialog p { margin: 0; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two > * { min-width: 0; }
+.err { color: var(--bad); font-size: 14px; }
+.pick { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.pick fieldset { margin: 0 0 12px; padding: 0; border: 0; }
+.pick legend { padding: 0 0 4px; font-weight: 600; font-size: 14px; }
+dialog label.tick { display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; font-size: 15px; color: var(--ink); }
+.tick input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent-2); }
+.tick .hint { display: block; }
+.assist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.assist h3 { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); }
+dialog.roomy { width: min(680px, calc(100vw - 32px)); }
+dialog textarea.field { padding: 12px; resize: vertical; font: inherit; font-size: 16px; color: var(--ink); line-height: 1.45; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn[aria-pressed=true] { background: #d81f5c; color: #fff; }
+.thinking { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+.proposals { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+dialog label.proposal { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--glass); font-size: 15px; color: var(--ink); cursor: pointer; }
+.proposal:has(input:not(:checked)) > div { opacity: .5; }
+.proposal input { flex: none; width: 19px; height: 19px; margin: 1px 0 0; accent-color: var(--accent-2); }
+.proposal > div { min-width: 0; overflow-wrap: anywhere; }
+.proposal dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 14px; margin: 6px 0 0; font-size: 14px; }
+.proposal dt { color: var(--ink-2); }
+.proposal dd { margin: 0; }
+.proposal s { color: var(--ink-3); }
+.proposal .hint { margin-top: 6px; }
+.sticky { position: sticky; bottom: -24px; margin: 0 -24px -24px; padding: 14px 24px 20px; background: var(--solid); border-top: 1px solid var(--line); }
+.key-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.key-form .field { flex: 1 1 260px; }
+.section > .err, .section > .hint { margin: 10px 2px 0; }
+#toast button { margin-left: 12px; padding: 4px 10px; border: 0; border-radius: 12px; background: #1b1726; color: #fff; }
+#toast { position: fixed; inset: auto 0 26px; z-index: 5; margin: auto; width: fit-content; max-width: calc(100vw - 32px); padding: 11px 18px; border-radius: 22px; background: var(--ink); color: #1b1726; font-weight: 500; }
+#toast:empty { display: none; }
+
+body::after { content: ''; position: fixed; inset: 0 0 auto; z-index: 9; height: 3px; background: linear-gradient(90deg, transparent, #8fb0ff, transparent); background-size: 40% 100%; background-repeat: no-repeat; opacity: 0; }
+.busy::after { opacity: 1; animation: slide 1.1s linear infinite; }
+@keyframes slide { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+a.btn { text-decoration: none; }
+
+/* ---------- вход ---------- */
+.auth .side { display: none; }
+.auth .shell { grid-template-columns: minmax(0, 1fr); }
+.auth main { display: grid; place-items: center; padding: 22px; }
+.auth-card { display: grid; gap: 14px; width: min(400px, 100%); padding: 28px; border-radius: 24px; background: var(--glass); }
+.auth-card label { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
+.auth-card .field { font-size: 16px; color: var(--ink); min-height: 44px; }
+.auth-card p { margin: 0; }
+.invite { display: grid; gap: 10px; }
+
+/* ---------- кнопка «+» ---------- */
+.fab { position: fixed; right: max(44px, calc((100vw - 1560px) / 2 + 24px)); bottom: 44px; z-index: 4; display: flex; align-items: flex-end; gap: 12px; }
+.fab-btn { display: grid; place-items: center; width: 52px; height: 52px; padding: 0; border: 2px solid #fff; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+.fab-btn:hover { background: #2149e0; }
+.fab-btn .ico { transition: transform .15s; }
+.fab-btn[aria-expanded=true] .ico { transform: rotate(45deg); }
+.fab-menu { display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 18px; background: rgba(62, 56, 76, .96); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
+.fab-menu button { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: none; text-align: left; }
+.fab-menu button:hover { background: var(--glass-2); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 760px) {
+  body { padding: 0; }
+  .shell { display: block; min-height: 100dvh; border: 0; border-radius: 0; }
+  .side { position: fixed; inset: auto 0 0; z-index: 3; height: auto; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #231e2f; border-top: 1px solid var(--line); }
+  .logo { display: none; }
+  #nav { grid-auto-flow: column; justify-content: space-around; width: 100%; margin: 0; }
+  #nav a { padding: 8px 4px; border-radius: 18px; }
+  main { padding: 12px 12px 170px; }
+  .banner { min-height: 108px; padding: 18px; }
+  .banner-side { margin-left: 0; width: 100%; font-weight: 400; }
+  .strip { gap: 12px 26px; padding: 14px 18px; }
+  .members { margin-left: 0; }
+  .toolbar .grow { display: none; }
+  .search { flex: 1 1 100%; }
+  .search input { width: 100%; }
+  .fgroup { grid-template-columns: 1fr; gap: 4px; }
+  .fgroup .label { padding: 0; }
+  .board { grid-auto-columns: min(290px, 80vw); scroll-snap-type: x proximity; }
+  .col { scroll-snap-align: start; }
+  .people .line, .fns .line { grid-template-columns: 1fr; }
+  dialog { padding: 18px; }
+  .sticky .grow { display: none; }
+  .sticky .btn { flex: 1 1 auto; }
+  .sticky { bottom: -18px; margin: 0 -18px -18px; padding: 12px 18px 16px; }
+  dialog .btn { padding-inline: 12px; }
+  .fab { right: 16px; bottom: calc(92px + env(safe-area-inset-bottom)); }
+  #toast { bottom: calc(92px + env(safe-area-inset-bottom)); margin-left: 16px; max-width: calc(100vw - 100px); }
+}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <a class="logo" href="#/" aria-label="На главную"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="url(#lg)" stroke-width="3" stroke-linecap="round"><defs><linearGradient id="lg" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#4d7dff"/><stop offset="1" stop-color="#f59bd0"/></linearGradient></defs><path d="M5 19v-6M12 19V5M19 19V9"/></svg></a>
+      <nav aria-label="Разделы" id="nav"></nav>
+    </aside>
+    <main id="view" tabindex="-1"></main>
+  </div>
+  <div class="fab" id="fab"></div>
+  <dialog id="dialog"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  
+<script>
+(async () => {
+const DAY = 86400000;
+const toMs = s => Date.parse(`${s}T00:00:00Z`);
+const addDays = (s, n) => new Date(toMs(s) + n * DAY).toISOString().slice(0, 10);
+const diffDays = (a, b) => Math.round((toMs(b) - toMs(a)) / DAY);
+const addMonths = (ym, n) => {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
+};
+function monthWeeks(ym) {
+  const first = `${ym}-01`;
+  const shift = (new Date(toMs(first)).getUTCDay() + 6) % 7;
+  const end = `${addMonths(ym, 1)}-01`;
+  const weeks = [];
+  for (let d = addDays(first, -shift); d < end; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
+  return weeks;
+}
+function range(t) {
+  const start = t.start ?? t.due;
+  return start ? { start, end: t.due ?? t.start } : null;
+}
+function layoutWeek(days, tasks) {
+  const [from, to] = [days[0], days[6]];
+  const items = tasks.map(t => ({ t, r: range(t) })).filter(x => x.r && x.r.start <= to && x.r.end >= from)
+    .sort((a, b) => a.r.start.localeCompare(b.r.start) || b.r.end.localeCompare(a.r.end) || a.t.id - b.t.id);
+  const lanes = [];
+  return items.map(({ t, r }) => {
+    const a = Math.max(0, diffDays(from, r.start)), b = Math.min(6, diffDays(from, r.end));
+    let lane = lanes.findIndex(last => last < a);
+    if (lane < 0) lane = lanes.length;
+    lanes[lane] = b;
+    return { task: t, col: a, span: b - a + 1, lane, first: r.start >= from, last: r.end <= to };
+  });
+}
+function moveTo(t, day, grabbed = 0) {
+  const r = range(t);
+  if (!r) return { start: day, due: day };
+  const shift = diffDays(r.start, addDays(day, -grabbed));
+  return { start: t.start && addDays(t.start, shift), due: t.due && addDays(t.due, shift) };
+}
+
+
+const $ = s => document.querySelector(s);
+const GAS = typeof google !== 'undefined' && google.script?.run ? google.script.run : null;
+const REMOTE = 'remote' in document.documentElement.dataset;
+const SHEETS = !!GAS || REMOTE;
+let backend = REMOTE ? load('backend') : null;
+let route = '#/';
+const here = () => (GAS ? route : location.hash);
+function go(hash) {
+  if (!GAS) { location.hash = hash; return; }
+  route = hash;
+  moved();
+}
+const MODEL = { mentorship: 'Наставничество', club: 'Клуб' };
+const STATUS = { todo: 'Сделать', doing: 'В работе', review: 'На проверке', done: 'Готово' };
+const HINT = {
+  todo: 'Всё новое попадает сюда.',
+  doing: 'Делают прямо сейчас.',
+  review: 'Сделано, ждёт приёмки.',
+  done: 'Принято.',
+};
+
+let state = null;
+let month = null;    // месяц цифр на главной и в проекте, ГГГГ-ММ
+let calMonth = null; // месяц календаря задач
+let view = load('view') === 'calendar' ? 'calendar' : 'board';
+let filterOpen = false;
+const newFilter = () => ({ project: new Set(), person: new Set(), status: new Set(), query: '' });
+const filters = { tasks: newFilter(), project: newFilter() };
+let filterOwner = null; // для какого проекта включён фильтр на странице проекта
+const svg = (d, w = 18) => `<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICONS = {
+  home: svg('<path d="m4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>', 20),
+  tasks: svg('<path d="m3 13 4 4L15 8M12 16l1 1 8-9"/>', 20),
+  settings: svg('<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.6"/><circle cx="8" cy="17" r="2.6"/>', 20),
+  person: svg('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-4 3.4-6 7-6s6.4 2 7 6"/>', 20),
+  date: svg('<rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="M4 10.5h16M8.5 3v4M15.5 3v4"/>', 15),
+  spark: svg('<path d="M11 4c.8 4.6 2.4 6.2 7 7-4.6.8-6.2 2.4-7 7-.8-4.6-2.4-6.2-7-7 4.6-.8 6.2-2.4 7-7z"/><path d="M19 3v4M17 5h4"/>', 17),
+  mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', 17),
+  plus: svg('<path d="M12 5v14M5 12h14"/>', 18),
+  search: svg('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>', 17),
+  filter: svg('<path d="M4 5h16l-6.5 7.5V19l-3-1.5v-5z"/>', 16),
+  board: svg('<rect x="4" y="4" width="6.5" height="16" rx="2"/><rect x="13.5" y="4" width="6.5" height="10" rx="2"/>', 16),
+  project: svg('<path d="M4 7a2 2 0 0 1 2-2h4l2 2.5h6a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>', 17),
+};
+const icon = name => { const el = h('span', { class: 'ico', 'aria-hidden': 'true' }); el.innerHTML = ICONS[name]; return el; };
+function load(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function store(k, v) { try { localStorage.setItem(k, v); } catch { /* без памяти тоже работает */ } }
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'value' || k === 'checked' || k === 'selected') el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  el.append(...kids.flat(Infinity).filter(x => x !== null && x !== undefined && x !== false));
+  return el;
+}
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const local = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d ?? 1); };
+const today = () => iso(new Date());
+const thisMonth = () => today().slice(0, 7);
+const money = n => `${new Intl.NumberFormat('ru-RU').format(n)} ₽`;
+const plural = (n, one, few, many) => {
+  const a = n % 100, b = n % 10;
+  return `${n} ${a > 10 && a < 20 ? many : b === 1 ? one : b > 1 && b < 5 ? few : many}`;
+};
+const monthTitle = ym => {
+  const name = new Intl.DateTimeFormat('ru-RU', { month: 'long' }).format(local(ym));
+  return `${name[0].toUpperCase()}${name.slice(1)} ${ym.slice(0, 4)}`;
+};
+function dayText(s) {
+  const d = local(s);
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) }).format(d);
+}
+function datesText(t) {
+  if (t.start && t.due && t.start !== t.due) {
+    return t.start.slice(0, 7) === t.due.slice(0, 7) ? `${Number(t.start.slice(8))}–${dayText(t.due)}` : `${dayText(t.start)} – ${dayText(t.due)}`;
+  }
+  if (t.start && t.due) return dayText(t.due);
+  if (t.due) return `до ${dayText(t.due)}`;
+  return t.start ? `с ${dayText(t.start)}` : '';
+}
+
+let waiting = 0;
+function busy(step) { waiting += step; document.body.classList.toggle('busy', waiting > 0); }
+let fresh = null; // доска, которая пришла вместе с ответом на изменение
+async function api(method, path, body, signal) {
+  busy(1);
+  try { return await (GAS ? viaGoogle : REMOTE ? viaRemote : viaHttp)(method, path, body, signal); } finally { busy(-1); }
+}
+async function viaHttp(method, path, body, signal) {
+  let r;
+  try {
+    r = await fetch(path, { method, signal, headers: { 'x-app': 'producer-center' }, body: body && JSON.stringify(body) });
+  } catch (e) { throw e.name === 'AbortError' ? e : new Error('Нет связи с сайтом'); }
+  const v = await r.json().catch(() => ({}));
+  if (r.status === 401 && state) { state = null; $('#dialog').close(); authScreen(); } // вход истёк или доступ закрыли
+  if (!r.ok) throw new Error(v.error || 'Не получилось');
+  return v;
+}
+function viaGoogle(method, path, body, signal) {
+  return new Promise((done, fail) => {
+    signal?.addEventListener('abort', () => fail(Object.assign(new Error('Отменено'), { name: 'AbortError' })));
+    GAS.withSuccessHandler(raw => {
+      const r = JSON.parse(raw);
+      if (r.state) fresh = r.state;
+      if (r.status === 200) done(r.body); else fail(new Error(r.body.error || 'Не получилось'));
+    }).withFailureHandler(() => fail(new Error('Нет связи с Google'))).api(method, path, body ?? null);
+  });
+}
+async function viaRemote(method, path, body, signal) {
+  let r;
+  try {
+    r = await fetch(`https://script.google.com/macros/s/${backend}/exec`, { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', signal, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, path, body: body ?? null }) });
+  } catch (e) { throw e.name === 'AbortError' ? e : new Error('Нет связи с таблицей'); }
+  const v = await r.json().catch(() => null);
+  if (!v) throw new Error('Таблица не ответила. Попробуй ещё раз');
+  if (v.state) fresh = v.state;
+  if (v.status !== 200) throw new Error(v.body?.error || 'Не получилось');
+  return v.body;
+}
+let queue = Promise.resolve(), unsaved = 0;
+function background(show, send, failed) {
+  show();
+  render();
+  unsaved++;
+  queue = queue.then(async () => {
+    let problem = null;
+    try { await send(); } catch (e) { problem = e; fresh = null; }
+    unsaved--;
+    if (!unsaved || problem) await reload().catch(() => {});
+    else fresh = null;
+    if (problem) { toast(`Не сохранилось: ${problem.message}`); failed?.(problem); }
+  });
+}
+addEventListener('beforeunload', e => { if (unsaved) e.preventDefault(); });
+async function reload() {
+  const next = fresh ?? await api('GET', '/api/state');
+  fresh = null;
+  state = next;
+  if (REMOTE) store('state', JSON.stringify(next)); // в следующий раз доска появится сразу
+  loadedAt = Date.now();
+  render();
+  fab();
+}
+let toastTimer;
+function toast(msg, action) {
+  $('#toast').replaceChildren(msg, action ? h('button', { type: 'button', onclick: () => { $('#toast').replaceChildren(); action.fn(); } }, action.label) : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').replaceChildren(); }, action ? 12000 : 3500);
+}
+async function attempt(fn) { try { await fn(); } catch (e) { toast(e.message); } }
+
+const isLate = t => t.status !== 'done' && t.due && t.due < today();
+const projectName = id => state.projects.find(p => p.id === id)?.name ?? 'Без проекта';
+const fnOf = t => state.functions.find(f => f.id === t.function_id);
+const departments = () => [...new Set(state.functions.map(f => f.dept))];
+const projectColor = id => { const i = state.projects.findIndex(p => p.id === id); return i < 0 ? 'p0' : `p${i % 6 + 1}`; };
+
+function select(opts, current, props) {
+  return h('select', props, opts.map(([v, label]) => h('option', { value: v, selected: v === current }, label)));
+}
+const projectOptions = () => [['', 'Без проекта'], ...state.projects.map(p => [String(p.id), p.name])];
+const peopleOptions = () => [['', 'Не назначено'], ...state.people.map(p => [p.name, p.name])];
+function revenue(projectId) {
+  const rows = state.daily.filter(d => d.project_id === projectId && d.date.startsWith(month));
+  return rows.length ? rows.reduce((a, r) => a + r.revenue, 0) : null;
+}
+const value = v => v === null ? h('span', { class: 'empty' }, 'Нет данных') : v;
+const meta = (label, ...v) => h('div', { class: 'meta' }, h('span', { class: 'label' }, label), h('div', { class: 'val' }, v));
+function hero({ crumbs, title, action, side, strip }) {
+  return h('header', { class: 'hero' },
+    h('div', { class: 'banner' }, crumbs ? h('p', { class: 'crumbs' }, crumbs) : null,
+      h('div', { class: 'banner-row' }, h('h1', {}, title), action, side ? h('span', { class: 'banner-side' }, side) : null)),
+    strip ? h('div', { class: 'strip' }, strip) : null);
+}
+function monthSelect() {
+  const list = [...new Set([thisMonth(), ...state.daily.map(d => d.date.slice(0, 7))])].sort().reverse();
+  if (!list.includes(month)) month = thisMonth();
+  return select(list.map(m => [m, monthTitle(m)]), month, { 'aria-label': 'Месяц', 'data-key': 'month', onchange: e => { month = e.target.value; render(); } });
+}
+function home() {
+  const picker = monthSelect();
+  const sums = state.projects.map(p => revenue(p.id));
+  const known = sums.filter(x => x !== null);
+  const late = state.tasks.filter(isLate).length;
+  return [
+    hero({ title: 'Проекты', strip: [
+      state.me.money ? meta('Месяц', picker) : null,
+      state.me.money ? meta('Выручка по всем проектам', h('b', { class: 'big' }, value(known.length ? money(known.reduce((a, b) => a + b, 0)) : null))) : null,
+      meta('Просрочено задач', lateLink(late, 'tasks')),
+    ] }),
+    h('div', { class: 'toolbar' }, h('b', {}, plural(state.projects.length, 'проект', 'проекта', 'проектов')),
+      state.me.owner ? h('button', { class: 'btn main', type: 'button', 'data-key': 'add-project', onclick: () => projectDialog() }, icon('plus'), 'Добавить проект') : null),
+    state.projects.length
+      ? h('div', { class: 'cards' }, state.projects.map((p, i) => projectCard(p, sums[i])))
+      : h('div', { class: 'blank' }, 'Проектов пока нет. Добавь первый.'),
+  ];
+}
+function lateLink(n, owner) {
+  return h('a', { href: owner === 'tasks' ? '#/tasks' : here(), class: n ? 'bad big' : 'big', onclick: e => {
+    filters[owner] = newFilter();
+    filters[owner].status.add('late');
+    if (owner === 'project') { e.preventDefault(); render(); }
+    else if (here().startsWith('#/tasks')) render();
+  } }, String(n));
+}
+function projectCard(p, sum) {
+  const list = state.tasks.filter(t => t.project_id === p.id && t.status !== 'done');
+  const late = list.filter(isLate).length;
+  return h('a', { class: `card ${projectColor(p.id)}`, href: `#/p/${p.id}` },
+    h('div', { class: 'card-top' }, h('h2', {}, p.name), h('span', { class: 'pill' }, MODEL[p.model])),
+    h('div', { class: 'card-body' },
+      state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
+      h('p', { class: 'foot' }, list.length ? plural(list.length, 'открытая задача', 'открытые задачи', 'открытых задач') : 'Открытых задач нет',
+        late ? [', ', h('span', { class: 'bad' }, `просрочено ${late}`)] : null)));
+}
+
+function project(id) {
+  const p = state.projects.find(x => x.id === id);
+  if (!p) return [h('div', { class: 'blank' }, 'Такого проекта нет. ', h('a', { href: '#/' }, 'На главную'))];
+  if (filterOwner !== id) { filters.project = newFilter(); filterOwner = id; }
+  const picker = monthSelect();
+  const sum = revenue(id);
+  const list = state.tasks.filter(t => t.project_id === id);
+  return [
+    hero({
+      crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: MODEL[p.model],
+      action: state.me.owner ? h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить') : null,
+      strip: [state.me.money ? meta('Месяц', picker) : null, state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
+        meta('Просрочено', lateLink(list.filter(isLate).length, 'project')), members(filters.project)],
+    }),
+    ...tasksBlock(list, filters.project, id),
+  ];
+}
+function members(filter) {
+  if (!state.people.length) return null;
+  return h('div', { class: 'members' }, h('span', { class: 'label' }, 'Кто делает'), h('div', { class: 'names' }, state.people.map(p =>
+    h('button', { class: 'name', type: 'button', 'aria-pressed': String(filter.person.has(p.name)), 'data-key': `who-${p.id}`,
+      onclick: () => { if (!filter.person.delete(p.name)) filter.person.add(p.name); render(); } }, p.name))));
+}
+const tasks = () => [
+  hero({ title: 'Задачи', strip: [
+    meta('Открыто', h('b', { class: 'big' }, String(state.tasks.filter(t => t.status !== 'done').length))),
+    meta('Просрочено', lateLink(state.tasks.filter(isLate).length, 'tasks')), members(filters.tasks)] }),
+  ...tasksBlock(state.tasks, filters.tasks, null),
+];
+function tasksBlock(list, filter, projectId) {
+  for (const [key, , opts] of filterGroups(projectId)) for (const v of filter[key]) if (!opts.some(([o]) => o === v)) filter[key].delete(v);
+  const only = projectId ?? (filter.project.size === 1 ? Number([...filter.project][0]) || null : null);
+  const active = activeFilters(filter, projectId);
+  const add = preset => taskDialog(null, { project_id: only, ...preset });
+  const tab = (v, name, ico) => h('button', { type: 'button', 'aria-pressed': String(view === v), 'data-key': `view-${v}`, onclick: () => { view = v; store('view', v); render(); } }, icon(ico), name);
+  const count = h('b', { class: 'n-tasks' }), results = h('div', { class: 'results' });
+  const draw = () => {
+    const shown = list.filter(t => matches(t, filter));
+    count.textContent = plural(shown.length, 'задача', 'задачи', 'задач');
+    results.replaceChildren(view === 'calendar' ? calendar(shown, projectId === null) : board(shown, projectId === null, shownColumns(filter), add));
+  };
+  draw();
+  return [
+    h('div', { class: 'toolbar' }, count,
+      h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Добавить задачу'),
+      state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant', onclick: () => assistantDialog(projectId) }, icon('spark'), 'Помощник') : null,
+      h('span', { class: 'grow' }),
+      h('label', { class: 'search' }, icon('search'), h('input', { type: 'search', placeholder: 'Найти задачу', 'aria-label': 'Найти задачу', value: filter.query, 'data-key': 'search', oninput: e => { filter.query = e.target.value; draw(); } })),
+      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date')),
+      h('button', { class: 'btn', type: 'button', 'aria-expanded': String(filterOpen), 'data-key': 'filter', onclick: () => { filterOpen = !filterOpen; render(); } },
+        icon('filter'), active.length ? `Фильтр: ${active.length}` : 'Фильтр')),
+    filterOpen ? filterPanel(filter, projectId, active) : active.length ? filterSummary(filter, active) : null,
+    results,
+  ].filter(Boolean);
+}
+function filterGroups(projectId) {
+  return [
+    projectId === null && ['project', 'Проект', [...state.projects.map(p => [String(p.id), p.name]), ['none', 'Без проекта']]],
+    ['person', 'Кто делает', [...state.people.map(p => [p.name, p.name]), ['none', 'Не назначено']]],
+    ['status', 'Состояние', [...Object.entries(STATUS), ['late', 'Просрочено']]],
+  ].filter(Boolean);
+}
+const activeFilters = (filter, projectId) => filterGroups(projectId).flatMap(([key, , opts]) => opts.filter(([v]) => filter[key].has(v)).map(([v, label]) => [key, v, label]));
+const matches = (t, f) =>
+  (!f.query.trim() || t.title.toLowerCase().includes(f.query.trim().toLowerCase())) &&
+  (!f.project.size || f.project.has(String(t.project_id ?? 'none'))) &&
+  (!f.person.size || f.person.has(t.person ?? 'none')) &&
+  (!f.status.size || f.status.has(t.status) || (f.status.has('late') && isLate(t)));
+const shownColumns = f => Object.keys(STATUS).filter(s => !f.status.size || f.status.has(s) || f.status.has('late'));
+const focusFilter = () => $('[data-key=filter]').focus();
+const resetButton = filter => h('button', { class: 'link', type: 'button', onclick: () => { for (const k of ['project', 'person', 'status']) filter[k].clear(); render(); focusFilter(); } }, 'Сбросить');
+function filterPanel(filter, projectId, active) {
+  return h('div', { class: 'panel' },
+    filterGroups(projectId).map(([key, label, opts]) => h('div', { class: 'fgroup', role: 'group', 'aria-label': label },
+      h('span', { class: 'label' }, label),
+      h('div', { class: 'chips' }, opts.map(([v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(filter[key].has(v)), 'data-key': `f-${key}-${v}`,
+        onclick: () => { if (!filter[key].delete(v)) filter[key].add(v); render(); } }, name))))),
+    active.length ? resetButton(filter) : null);
+}
+function filterSummary(filter, active) {
+  return h('div', { class: 'chips summary' },
+    active.map(([key, v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': 'true', 'aria-label': `Убрать фильтр: ${name}`,
+      onclick: () => { filter[key].delete(v); render(); focusFilter(); } }, name, h('span', { 'aria-hidden': 'true' }, ' ×'))),
+    resetButton(filter));
+}
+let dragged = null; // { id, grabbed }: что тащат и за какой день полосы взяли
+const draggable = (t, grabbed = () => 0) => ({
+  draggable: 'true',
+  ondragstart: e => {
+    dragged = { id: t.id, grabbed: grabbed(e) };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', t.title);
+    e.currentTarget.classList.add('moving');
+  },
+  ondragend: e => { dragged = null; e.currentTarget.classList.remove('moving'); clearGap(); clearTarget(); },
+});
+const accept = e => { if (dragged) e.preventDefault(); };
+const opens = open => ({
+  role: 'button', tabindex: '0', onclick: open,
+  onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } },
+});
+
+function board(list, showProject, columns, add) {
+  return h('div', { class: 'board' }, columns.map(status => {
+    const items = list.filter(t => t.status === status);
+    const cards = h('div', { class: 'cards-list' }, items.map(t => card(t, showProject)));
+    const col = h('section', { class: 'col', 'aria-label': `${STATUS[status]}: ${items.length}`,
+      ondragenter: accept,
+      ondragover: e => {
+        if (!dragged) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        showGap(cards, e.clientY);
+      },
+      ondragleave: e => { if (!col.contains(e.relatedTarget)) clearGap(); },
+      ondrop: e => {
+        if (!dragged) return;
+        e.preventDefault();
+        const next = nextCard(cards, e.clientY);
+        moveCard(dragged.id, status, next ? Number(next.dataset.id) : null);
+      } },
+      h('div', { class: 'col-head' }, h('h3', {}, STATUS[status]), h('span', { class: 'count' }, String(items.length)),
+        h('button', { class: 'plus', type: 'button', 'aria-label': `Добавить в «${STATUS[status]}»`, 'data-key': `plus-${status}`, onclick: () => add({ status }) }, icon('plus'))),
+      cards, items.length ? null : h('p', { class: 'hint' }, HINT[status]));
+    return col;
+  }));
+}
+function card(t, showProject) {
+  const dates = datesText(t);
+  return h('div', { class: `kcard${t.status === 'done' ? ' done' : ''}${t.saving ? ' saving' : ''}`, 'data-id': t.id, 'data-key': `t${t.id}`, ...(t.saving ? {} : { ...opens(() => taskDialog(t)), ...draggable(t) }) },
+    h('div', { class: 'kcard-top' },
+      h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null)),
+      showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
+    h('div', { class: 't' }, t.title),
+    h('div', { class: 'm' }, 'Делает: ', t.person ?? 'не назначено'));
+}
+function nextCard(cards, y) {
+  return [...cards.querySelectorAll('.kcard')].find(c => {
+    if (Number(c.dataset.id) === dragged.id) return false;
+    const r = c.getBoundingClientRect();
+    return y < r.top + r.height / 2;
+  });
+}
+function clearGap() { document.querySelector('.gap')?.remove(); }
+function showGap(cards, y) {
+  const next = nextCard(cards, y) ?? null;
+  const gap = document.querySelector('.gap') ?? h('div', { class: 'gap' });
+  if (gap.parentNode !== cards || gap.nextSibling !== next) cards.insertBefore(gap, next);
+}
+function moveCard(id, status, before) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  const changed = task.status !== status;
+  dragged = null;
+  clearGap();
+  const show = () => {
+    task.status = status;
+    state.tasks.splice(state.tasks.indexOf(task), 1);
+    const at = before === null ? -1 : state.tasks.findIndex(t => t.id === before);
+    state.tasks.splice(at < 0 ? state.tasks.length : at, 0, task);
+  };
+  if (SHEETS) {
+    background(show, () => api('PATCH', `/api/tasks/${id}`, { status, before }));
+    if (changed) toast(`Перенёс в «${STATUS[status]}»`);
+    return;
+  }
+  show();
+  render();
+  attempt(async () => {
+    try { await api('PATCH', `/api/tasks/${id}`, { status, before }); } finally { await reload(); }
+    if (changed) toast(`Перенёс в «${STATUS[status]}»`);
+  });
+}
+function calendar(list, showProject) {
+  calMonth ??= thisMonth();
+  const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
+  const undated = list.filter(t => !range(t));
+  return h('div', { class: 'calendar' },
+    h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, monthTitle(calMonth)),
+      h('div', { class: 'row' }, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
+        go('cal-now', 'Текущий месяц', thisMonth(), 'Сегодня'), go('cal-next', 'Следующий месяц', addMonths(calMonth, 1), '→'))),
+    h('div', { class: 'cal-scroll' }, h('div', { class: 'cal-grid' },
+      h('div', { class: 'cal-days', 'aria-hidden': 'true' }, ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => h('div', {}, d))),
+      monthWeeks(calMonth).map(days => week(days, list, showProject)))),
+    undated.length ? h('div', { class: 'undated' }, h('h3', {}, 'Без дат'), h('p', { class: 'hint' }, 'Перетащи на нужный день.'),
+      h('div', { class: 'chips' }, undated.map(t => bar(t, showProject, 'loose')))) : null);
+}
+function week(days, list, showProject) {
+  const segments = layoutWeek(days, list);
+  const lanes = Math.max(0, ...segments.map(s => s.lane + 1));
+  const dayAt = e => {
+    const r = el.getBoundingClientRect();
+    return days[Math.min(6, Math.max(0, Math.floor((e.clientX - r.left) / r.width * 7)))];
+  };
+  const cells = days.map((d, i) => h('div', {
+    class: `day${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, 'data-day': d, style: `grid-column:${i + 1};grid-row:1/-1`,
+    onclick: () => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+  }));
+  const numbers = days.map((d, i) => h('button', {
+    class: `daynum${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, type: 'button', style: `grid-column:${i + 1};grid-row:1`, 'data-key': `day-${d}`,
+    'aria-label': `Добавить задачу на ${dayText(d)}`, onclick: () => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+  }, String(Number(d.slice(8)))));
+  const el = h('div', { class: 'week', style: `grid-template-rows:34px ${'30px '.repeat(lanes)}minmax(14px,1fr)`,
+    ondragenter: accept,
+    ondragover: e => {
+      if (!dragged) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const cell = el.querySelector(`[data-day="${dayAt(e)}"]`);
+      if (!cell.classList.contains('target')) { clearTarget(); cell.classList.add('target'); }
+    },
+    ondragleave: e => { if (!el.contains(e.relatedTarget)) clearTarget(); },
+    ondrop: e => { if (dragged) { e.preventDefault(); moveDates(dragged, dayAt(e)); } },
+  }, cells, numbers, segments.map(s => {
+    const b = bar(s.task, showProject, `${s.first ? '' : 'cut-l '}${s.last ? '' : 'cut-r'}`, e => {
+      const r = b.getBoundingClientRect();
+      const inside = Math.min(s.span - 1, Math.max(0, Math.floor((e.clientX - r.left) / r.width * s.span)));
+      return diffDays(range(s.task).start, days[s.col + inside]);
+    });
+    b.style.gridColumn = `${s.col + 1} / span ${s.span}`;
+    b.style.gridRow = String(s.lane + 2);
+    return b;
+  }));
+  return el;
+}
+function bar(t, showProject, cls, grabbed) {
+  const name = showProject && t.project_id ? `${projectName(t.project_id)}: ${t.title}` : t.title;
+  const full = [name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status], isLate(t) && 'просрочено'].filter(Boolean).join(', ');
+  return h('div', { class: `bar ${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''} ${cls}`, title: full, 'aria-label': full, 'data-key': `b${t.id}`,
+    ...(t.saving ? {} : { ...opens(() => taskDialog(t)), ...draggable(t, grabbed) }) }, h('span', {}, name));
+}
+function clearTarget() { document.querySelector('.day.target')?.classList.remove('target'); }
+function moveDates({ id, grabbed }, day) {
+  const t = state.tasks.find(x => x.id === id);
+  dragged = null;
+  clearTarget();
+  if (!t) return;
+  const dates = moveTo(t, day, grabbed);
+  if (dates.start === t.start && dates.due === t.due) return;
+  if (SHEETS) {
+    background(() => Object.assign(t, dates), () => api('PATCH', `/api/tasks/${id}`, dates));
+    toast(`Перенёс: ${datesText(dates)}`);
+    return;
+  }
+  Object.assign(t, dates);
+  render();
+  attempt(async () => {
+    try { await api('PATCH', `/api/tasks/${id}`, dates); } finally { await reload(); }
+    toast(`Перенёс: ${datesText(dates)}`);
+  });
+}
+const pageProject = () => Number(here().match(/^#\/p\/(\d+)$/)?.[1]) || null;
+function settings() {
+  const test = state.daily.some(d => d.is_test) || state.tasks.some(t => t.is_test);
+  const row = p => {
+    const does = state.functions.filter(f => f.person === p.name).length, checks = state.functions.filter(f => f.controller === p.name).length;
+    const open = state.tasks.filter(t => t.person === p.name && t.status !== 'done').length;
+    return h('button', { class: 'line', type: 'button', 'data-key': `person-${p.id}`, onclick: () => personDialog(p) },
+      h('b', {}, p.name), state.me.open ? null : h('span', {}, ACCESS[p.access]), h('span', {}, `Делает: ${plural(does, 'функция', 'функции', 'функций')}`),
+      h('span', {}, `Проверяет: ${plural(checks, 'функция', 'функции', 'функций')}`), h('span', {}, `Открытых задач: ${open}`));
+  };
+  const fn = f => h('button', { class: 'line', type: 'button', 'data-key': `fn-${f.id}`, onclick: () => functionDialog(f) },
+    h('span', {}, f.name, f.note ? h('span', { class: 'hint' }, f.note) : null), h('span', {}, `Делает: ${f.person ?? 'не указано'}`), h('span', {}, `Проверяет: ${f.controller ?? 'не указано'}`));
+  if (!state.me.owner) return [hero({ title: 'Настройки' }), mySection()];
+  return [
+    hero({ title: 'Настройки' }),
+    state.me.open ? linkSection() : mySection(),
+    h('section', { class: 'section' }, h('div', { class: 'head' }, h('h2', {}, 'Команда'),
+      h('button', { class: 'btn main', type: 'button', 'data-key': 'add-person', onclick: () => personDialog() }, 'Добавить человека')),
+      state.people.length ? h('div', { class: 'lines people' }, state.people.map(row)) : h('div', { class: 'blank' }, 'Пока никого.')),
+    h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Функции'), h('p', {}, 'Выбираешь функцию в задаче, и люди подставляются сами.')),
+      h('button', { class: 'btn', type: 'button', 'data-key': 'add-fn', onclick: () => functionDialog() }, 'Добавить функцию')),
+      departments().map(d => {
+        const list = state.functions.filter(f => f.dept === d);
+        return h('details', { class: 'dept', open: openDepts.has(d), ontoggle: e => { if (e.target.open) openDepts.add(d); else openDepts.delete(d); } },
+          h('summary', {}, d, h('span', { class: 'count' }, String(list.length))), h('div', { class: 'lines fns' }, list.map(fn)));
+      })),
+    assistantSettings(),
+    test ? h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Тестовые данные'), h('p', {}, 'Примеры задач и выручки, чтобы было на что смотреть.')),
+      h('button', { class: 'btn danger', type: 'button', 'data-key': 'clear', onclick: clearDialog }, 'Удалить тестовые данные'))) : null,
+  ].filter(Boolean);
+}
+const openDepts = new Set();
+function openDialog(title, fields, { save, remove, after, extra, now, label = 'Сохранить', danger }) {
+  const dlg = $('#dialog');
+  dlg.classList.remove('roomy');
+  const err = h('p', { class: 'err', role: 'alert', hidden: true });
+  const run = async fn => {
+    const buttons = [...dlg.querySelectorAll('button')];
+    buttons.forEach(b => { b.disabled = true; });
+    try { const v = await fn(); dlg.close(); await reload(); after?.(v); }
+    catch (e) { err.textContent = e.message; err.hidden = false; buttons.forEach(b => { b.disabled = false; }); }
+  };
+  const del = remove && h('button', { class: 'btn danger', type: 'button', onclick: () => {
+    if (del.dataset.sure && remove.now) { dlg.close(); remove.now(); return; }
+    if (del.dataset.sure) return run(remove.fn);
+    del.dataset.sure = '1'; del.textContent = 'Точно удалить';
+    err.textContent = remove.warning; err.hidden = false;
+  } }, 'Удалить');
+  const form = h('form', { onsubmit: e => {
+    e.preventDefault();
+    const fd = new FormData(form), f = Object.fromEntries(fd);
+    if (!now) { run(() => save(f, fd)); return; }
+    const problem = !f.title.trim() ? 'Задача: заполни поле' : f.start && f.due && f.start > f.due ? 'Начало позже конца' : null;
+    if (problem) { err.textContent = problem; err.hidden = false; return; }
+    dlg.close();
+    const v = now(f);
+    after?.(v);
+  } },
+    h('h2', { id: 'dialog-title' }, title), fields, err,
+    extra ? h('div', {}, extra) : null,
+    h('div', { class: 'row' }, del, h('span', { class: 'grow' }),
+      h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Отмена'),
+      h('button', { class: danger ? 'btn danger' : 'btn main' }, label)));
+  dlg.setAttribute('aria-labelledby', 'dialog-title');
+  dlg.replaceChildren(form);
+  dlg.showModal();
+}
+const input = (label, name, v, props) => h('label', {}, label, h('input', { class: 'field', name, value: v ?? '', autocomplete: 'off', ...props }));
+
+function functionField(current) {
+  const opt = (v, label) => h('option', { value: v, selected: v === current }, label);
+  const dept = h('span', { class: 'hint' });
+  const show = id => { const f = state.functions.find(x => x.id === id); dept.textContent = f ? `Отдел: ${f.dept}` : ''; };
+  show(current);
+  return h('label', {}, 'Функция', h('select', { name: 'function_id', onchange: e => {
+    show(e.target.value);
+    const f = state.functions.find(x => x.id === e.target.value);
+    if (!f) return;
+    e.target.form.elements.person.value = f.person ?? '';
+    e.target.form.elements.controller.value = f.controller ?? '';
+  } }, opt('', 'Без функции'), departments().map(d =>
+    h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
+}
+let tempId = 0;
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status });
+function taskDialog(t, preset = {}) {
+  const v = t ?? preset;
+  openDialog(t ? 'Задача' : 'Новая задача', [
+    input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
+    h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id' })),
+    functionField(v.function_id ?? ''),
+    h('div', { class: 'two' },
+      h('label', {}, 'Кто делает', select(peopleOptions(), v.person ?? '', { name: 'person' })),
+      h('label', {}, 'Кто проверяет', select(peopleOptions(), v.controller ?? '', { name: 'controller' }))),
+    h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date' }), input('Конец', 'due', v.due, { type: 'date' })),
+    h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
+  ], t ? {
+    now: SHEETS && (f => {
+      const x = state.tasks.find(y => y.id === t.id);
+      if (x) background(() => Object.assign(x, asTask(f)), () => api('PATCH', `/api/tasks/${t.id}`, f));
+    }),
+    save: f => api('PATCH', `/api/tasks/${t.id}`, f),
+    remove: { warning: 'Задача удалится насовсем.', fn: () => api('DELETE', `/api/tasks/${t.id}`),
+      now: SHEETS && (() => background(() => { state.tasks = state.tasks.filter(y => y.id !== t.id); }, () => api('DELETE', `/api/tasks/${t.id}`))) },
+  } : {
+    label: 'Добавить',
+    now: SHEETS && (f => {
+      const x = { id: --tempId, is_test: 0, saving: true, ...asTask(f) };
+      background(() => state.tasks.unshift(x), () => api('POST', '/api/tasks', f), () => { if (!$('#dialog').open) taskDialog(null, asTask(f)); });
+      return x;
+    }),
+    save: f => api('POST', '/api/tasks', f),
+    after: x => {
+      const p = pageProject();
+      const hidden = p ? x.project_id !== p || !matches(x, filters.project) : !matches(x, filters.tasks);
+      const onBoard = p || here().startsWith('#/tasks');
+      toast(onBoard && hidden ? `Добавлено (${projectName(x.project_id)}), здесь не видно` : `Добавлено в «${STATUS[x.status]}»`);
+    },
+  });
+}
+function projectDialog(p) {
+  openDialog(p ? 'Проект' : 'Новый проект', [
+    input('Название', 'name', p?.name, { required: true, maxlength: 60 }),
+    h('label', {}, 'Модель', select(Object.entries(MODEL), p?.model ?? 'mentorship', { name: 'model' })),
+  ], {
+    save: f => p ? api('PATCH', `/api/projects/${p.id}`, f) : api('POST', '/api/projects', f),
+    remove: p && { warning: SHEETS ? 'Проект удалится насовсем. Задачи останутся, но без проекта, строки выручки останутся в таблице.' : 'Проект и его цифры удалятся насовсем. Задачи останутся, но без проекта.',
+      fn: async () => { await api('DELETE', `/api/projects/${p.id}`); go('#/'); } },
+  });
+}
+function personDialog(p) {
+  const pick = (title, key, col) => h('details', { class: 'pick' },
+    h('summary', {}, title, h('span', { class: 'count' }, String(p ? state.functions.filter(f => f[col] === p.name).length : 0))),
+    departments().map(d => h('fieldset', {}, h('legend', {}, d), state.functions.filter(f => f.dept === d).map(f => {
+      const mine = !!p && f[col] === p.name;
+      return h('label', { class: 'tick' }, h('input', { type: 'checkbox', name: key, value: f.id, checked: mine }),
+        h('span', {}, f.name, f[col] && !mine ? h('span', { class: 'hint' }, `сейчас ${f[col]}`) : null));
+    }))));
+  const inTasks = p ? state.tasks.filter(t => t.person === p.name || t.controller === p.name).length : 0;
+  openDialog(p ? p.name : 'Новый человек', [
+    input('Имя', 'name', p?.name, { required: true, maxlength: 40 }),
+    pick('Что делает', 'does', 'person'), pick('Что проверяет', 'checks', 'controller'),
+  ], {
+    label: p ? 'Сохранить' : 'Добавить',
+    save: (f, fd) => {
+      const body = { name: f.name, does: fd.getAll('does'), checks: fd.getAll('checks') };
+      return p ? api('PATCH', `/api/people/${p.id}`, body) : api('POST', '/api/people', body);
+    },
+    extra: p && !state.me.open && p.access !== 'owner' ? h('button', { class: 'btn', type: 'button', onclick: () => accessDialog(p) }, 'Доступ к сайту') : null,
+    remove: p && (state.me.open || p.access !== 'owner') && { warning: `Человек уйдёт из функций${inTasks ? ` и ${plural(inTasks, 'задачи', 'задач', 'задач')}` : ''}. Сами функции и задачи останутся.`,
+      fn: () => api('DELETE', `/api/people/${p.id}`) },
+  });
+}
+function functionDialog(f) {
+  openDialog(f ? 'Функция' : 'Новая функция', [
+    input('Название', 'name', f?.name, { required: true, maxlength: 100 }),
+    input('Отдел', 'dept', f?.dept, { required: true, maxlength: 60, list: 'depts' }),
+    h('datalist', { id: 'depts' }, departments().map(d => h('option', { value: d }))),
+    h('div', { class: 'two' },
+      h('label', {}, 'Кто делает', select(peopleOptions(), f?.person ?? '', { name: 'person' })),
+      h('label', {}, 'Кто проверяет', select(peopleOptions(), f?.controller ?? '', { name: 'controller' }))),
+  ], {
+    label: f ? 'Сохранить' : 'Добавить',
+    save: v => f ? api('PATCH', `/api/functions/${f.id}`, v) : api('POST', '/api/functions', v),
+    after: v => { if (v.dept) { openDepts.add(v.dept); render(); } },
+    remove: f && { warning: 'Функция удалится. Задачи с ней останутся, но без функции.', fn: () => api('DELETE', `/api/functions/${f.id}`) },
+  });
+}
+function clearDialog() {
+  const n = state.tasks.filter(t => t.is_test).length;
+  openDialog('Удалить тестовые данные', [
+    h('p', {}, `Удалятся насовсем ${plural(n, 'тестовая задача', 'тестовые задачи', 'тестовых задач')} и вся тестовая выручка. Проекты, люди, функции и твои задачи останутся.`),
+  ], { label: 'Удалить', danger: true, save: () => api('DELETE', '/api/test-data') });
+}
+const ACCESS = { owner: 'Владелец', active: 'Доступ есть', invited: 'Приглашён', none: 'Без доступа' };
+function mySection() {
+  return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, state.me.name), h('p', {}, state.me.owner ? 'Владелец' : 'Участник команды')),
+    h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', 'data-key': 'password', onclick: passwordDialog }, 'Сменить пароль'),
+      h('button', { class: 'btn', type: 'button', 'data-key': 'logout', onclick: () => attempt(async () => { await api('POST', '/api/logout', {}); state = null; authScreen(); }) }, 'Выйти'))));
+}
+function linkSection() {
+  const share = () => attempt(async () => {
+    const url = `${location.origin}${location.pathname}#/k/${backend}`;
+    try { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); } catch { prompt('Скопируй ссылку', url); }
+  });
+  if (SHEETS) return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Google-таблица'), h('p', {}, 'Все данные лежат там. Выручку вноси на лист «Выручка»: дата, проект, сумма.')),
+    REMOTE ? h('button', { class: 'btn main', type: 'button', 'data-key': 'share', onclick: share }, 'Скопировать ссылку для команды') : null,
+    h('a', { class: 'btn', href: state.sheet, target: '_blank', rel: 'noopener' }, 'Открыть таблицу')));
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return null;
+  const copy = async url => { try { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); } catch { prompt('Скопируй ссылку', url); } };
+  const renew = h('button', { class: 'btn danger', type: 'button', 'data-key': 'link-new', onclick: () => {
+    if (!renew.dataset.sure) { renew.dataset.sure = '1'; renew.textContent = 'Точно сменить: старая перестанет работать'; return; }
+    attempt(async () => { const { url } = await api('POST', '/api/link/new', {}); render(); await copy(url); });
+  } }, 'Сменить ссылку');
+  return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Ссылка для команды'), h('p', {}, 'Кто откроет её, видит и меняет всё. Отправляй только своим.')),
+    h('div', { class: 'row' }, renew, h('button', { class: 'btn main', type: 'button', 'data-key': 'link-copy', onclick: () => attempt(async () => copy((await api('GET', '/api/link')).url)) }, 'Скопировать ссылку'))));
+}
+function passwordDialog() {
+  openDialog('Сменить пароль', [
+    input('Старый пароль', 'old', '', { type: 'password', required: true, autocomplete: 'current-password' }),
+    input('Новый пароль, от 10 знаков', 'password', '', { type: 'password', required: true, minlength: 10, maxlength: 200, autocomplete: 'new-password' }),
+  ], { save: f => api('POST', '/api/password', f), after: () => toast('Пароль изменён. На других устройствах надо войти заново') });
+}
+function accessDialog(p) {
+  const flag = (key, label, hint) => h('label', { class: 'tick' }, h('input', { type: 'checkbox', checked: p[key], onchange: async e => {
+    const box = e.target;
+    try { await api('PATCH', `/api/people/${p.id}/access`, { [key]: box.checked }); p[key] = box.checked; await reload(); } catch (x) { box.checked = !box.checked; toast(x.message); }
+  } }), h('span', {}, label, h('span', { class: 'hint' }, hint)));
+  const dlg = $('#dialog');
+  dlg.classList.remove('roomy');
+  const err = h('p', { class: 'err', role: 'alert', hidden: true });
+  const fail = e => { err.textContent = e.message; err.hidden = false; };
+  const out = h('div', { class: 'invite', hidden: true });
+  const make = h('button', { class: 'btn main', type: 'button', onclick: async () => {
+    try {
+      const { token, days } = await api('POST', `/api/people/${p.id}/access`, {});
+      const link = `${location.origin}/#/invite/${token}`;
+      const field = h('input', { class: 'field', readonly: true, value: link, 'aria-label': 'Ссылка-приглашение', onfocus: e => e.target.select() });
+      out.replaceChildren(field, h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: async () => {
+        try { await navigator.clipboard.writeText(link); toast('Ссылка скопирована'); } catch { field.focus(); field.select(); }
+      } }, 'Скопировать'), h('span', { class: 'hint' }, `Одноразовая, действует ${days} дней. Отправь лично.`)));
+      out.hidden = false;
+      await reload();
+    } catch (e) { fail(e); }
+  } }, p.access === 'active' ? 'Ссылка для нового пароля' : 'Создать приглашение');
+  const del = p.access === 'none' ? null : h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+    if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = 'Точно закрыть'; err.textContent = 'Человек сразу выйдет с сайта. Задачи и функции останутся.'; err.hidden = false; return; }
+    try { await api('DELETE', `/api/people/${p.id}/access`); dlg.close(); await reload(); toast('Доступ закрыт'); } catch (e) { fail(e); }
+  } }, 'Закрыть доступ');
+  dlg.setAttribute('aria-labelledby', 'dialog-title');
+  dlg.replaceChildren(h('div', { class: 'assist' }, h('h2', { id: 'dialog-title' }, `Доступ: ${p.name}`), h('p', { class: 'hint' }, ACCESS[p.access]),
+    h('p', {}, 'Видит все проекты и задачи, может их менять.'),
+    flag('money', 'Видит выручку', 'Своих проектов и чужих'), flag('ai', 'Пользуется помощником', 'Тратит деньги на твоём ключе Claude'), out, err,
+    h('div', { class: 'row' }, del, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Закрыть'), make)));
+  if (!dlg.open) dlg.showModal();
+}
+async function authScreen() {
+  $('#nav').replaceChildren(); $('#fab').replaceChildren();
+  document.body.classList.add('auth');
+  const card = (title, text, fields, label, send) => {
+    const err = h('p', { class: 'err', role: 'alert', hidden: true });
+    const btn = h('button', { class: 'btn main' }, label);
+    const form = h('form', { class: 'auth-card', onsubmit: async e => {
+      e.preventDefault();
+      btn.disabled = true; err.hidden = true;
+      try { await send(Object.fromEntries(new FormData(form))); await enter(); }
+      catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
+    } }, h('h1', {}, title), text ? h('p', { class: 'hint' }, text) : null, fields, err, btn);
+    $('#view').replaceChildren(form);
+    form.querySelector('input')?.focus();
+  };
+  const pass = (label, fresh) => input(label, 'password', '', { type: 'password', required: true, minlength: fresh ? 10 : null, maxlength: 200, autocomplete: fresh ? 'new-password' : 'current-password' });
+  try {
+    const secret = location.hash.match(/^#\/link\/([\w-]+)$/)?.[1];
+    if (secret) {
+      await api('POST', '/api/link', { token: secret });
+      history.replaceState(null, '', '#/');
+      return enter();
+    }
+    const invite = location.hash.match(/^#\/invite\/([\w-]+)$/)?.[1];
+    if (invite) {
+      const { name } = await api('POST', '/api/invite/check', { token: invite });
+      return card(`Привет, ${name}`, 'Придумай пароль, от 10 знаков. Входить будешь по имени и этому паролю.', [h('input', { type: 'text', name: 'username', value: name, autocomplete: 'username', hidden: true }), pass('Пароль', true)], 'Войти', async f => {
+        await api('POST', '/api/invite/accept', { token: invite, password: f.password });
+        history.replaceState(null, '', '#/');
+      });
+    }
+    const { open, me, setup, needCode } = await api('GET', '/api/me');
+    if (open && me) return enter();
+    if (open) {
+      $('#view').replaceChildren(h('div', { class: 'auth-card' }, h('h1', {}, 'Закрытый сайт'), h('p', {}, 'Открой его по приватной ссылке.')));
+      return;
+    }
+    if (setup) {
+      return card('Первый вход', 'Создай вход владельца. Пароль от 10 знаков, запомни его или сохрани в менеджере паролей.', [
+        input('Имя', 'name', '', { required: true, maxlength: 40, autocomplete: 'username' }), pass('Пароль', true),
+        needCode ? input('Код первого входа', 'code', '', { required: true }) : null], 'Создать вход', f => api('POST', '/api/setup', f));
+    }
+    card('Вход', null, [input('Имя', 'name', '', { required: true, maxlength: 40, autocomplete: 'username' }), pass('Пароль', false)], 'Войти', f => api('POST', '/api/login', f));
+  } catch (e) {
+    $('#view').replaceChildren(h('div', { class: 'auth-card' }, h('h1', {}, 'Не получилось'), h('p', {}, e.message),
+      h('button', { class: 'btn', type: 'button', onclick: () => { history.replaceState(null, '', '#/'); authScreen(); } }, 'Назад')));
+  }
+}
+async function enter() {
+  document.body.classList.remove('auth');
+  await reload();
+}
+function assistantSettings() {
+  const ready = state.assistant.ready;
+  const err = h('p', { class: 'err', role: 'alert', hidden: true });
+  const btn = h('button', { class: 'btn main' }, 'Сохранить');
+  const form = h('form', { class: 'key-form', onsubmit: async e => {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = 'Проверяю…'; err.hidden = true;
+    try { await api('POST', '/api/assistant/key', { key: new FormData(form).get('key') }); await reload(); toast('Ключ сохранён, помощник готов'); }
+    catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Сохранить'; }
+  } }, h('input', { class: 'field', type: 'password', name: 'key', placeholder: 'sk-ant-…', 'aria-label': 'Ключ Claude API', autocomplete: 'off', required: true }), btn);
+  return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Помощник'),
+    h('p', {}, ready ? 'Ключ Claude сохранён, помощник работает.' : ['Нужен ключ Claude API: ', h('a', { href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'консоль Claude'), ' → API Keys. Оплачивается отдельно от подписки.'])),
+    ready ? h('button', { class: 'btn danger', type: 'button', 'data-key': 'del-key', onclick: () => attempt(async () => { await api('DELETE', '/api/assistant/key'); await reload(); toast('Ключ удалён'); }) }, 'Удалить ключ') : null),
+    ready ? null : [form, err, h('p', { class: 'hint' }, SHEETS ? 'Ключ хранится в настройках скрипта Google. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.' : 'Ключ хранится только на этом компьютере. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.')]);
+}
+
+let draft = ''; // недописанный текст не теряется, если закрыть окно
+function assistantDialog(projectId) {
+  const dlg = $('#dialog');
+  let stop = null, rec = null;
+  const show = (title, ...body) => {
+    dlg.setAttribute('aria-labelledby', 'dialog-title');
+    dlg.replaceChildren(h('div', { class: 'assist' }, h('h2', { id: 'dialog-title' }, title), body));
+  };
+  const close = () => dlg.close();
+  dlg.addEventListener('close', () => { stop?.abort(); rec?.abort(); dlg.classList.remove('roomy'); }, { once: true });
+  dlg.classList.add('roomy');
+  const where = projectId ? `Проект: ${projectName(projectId)}` : 'Все проекты';
+  const undoBtn = () => state.assistant.undo ? h('button', { class: 'link', type: 'button', onclick: () => { close(); undoAssistant(); } }, 'Отменить последние изменения помощника') : null;
+
+  function start(error) {
+    if (!state.assistant.ready) {
+      return show('Помощник', h('p', {}, state.me.owner ? 'Чтобы помощник заработал, добавь ключ Claude в настройках.' : 'Помощник пока не настроен. Его включает владелец.'), undoBtn(),
+        h('div', { class: 'row' }, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: close }, 'Закрыть'),
+          state.me.owner ? h('button', { class: 'btn main', type: 'button', onclick: () => { close(); go('#/settings'); } }, 'В настройки') : null));
+    }
+    const err = h('p', { class: 'err', role: 'alert', hidden: !error }, error ?? '');
+    const area = h('textarea', { class: 'field', rows: 7, maxlength: 8000, 'aria-label': 'Что надо сделать', placeholder: 'Например: переписать страницу программы до пятницы, провести пять диагностик, и ещё снять три Reels', oninput: () => { draft = area.value; err.hidden = true; } });
+    area.value = draft;
+    show('Помощник', h('p', { class: 'hint' }, where), area, micButton(area, err), err, undoBtn(),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', type: 'button', onclick: () => run('tidy') }, 'Навести порядок'), h('span', { class: 'grow' }),
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Закрыть'),
+        h('button', { class: 'btn main', type: 'button', onclick: () => {
+          if (area.value.trim()) return run('dictate');
+          err.textContent = 'Напиши или надиктуй, что надо сделать'; err.hidden = false; area.focus();
+        } }, 'Разложить на задачи')));
+    area.focus();
+  }
+  function micButton(area, err) {
+    const Rec = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Rec) return null;
+    const btn = h('button', { class: 'btn', type: 'button', 'aria-pressed': 'false', onclick: () => {
+      if (rec) { rec.stop(); return; }
+      rec = new Rec();
+      rec.lang = 'ru-RU'; rec.continuous = true; rec.interimResults = true;
+      const before = area.value ? `${area.value.trimEnd()} ` : '';
+      rec.onresult = e => { area.value = draft = before + [...e.results].map(r => r[0].transcript).join(''); };
+      rec.onerror = e => {
+        if (e.error === 'aborted' || e.error === 'no-speech') return;
+        err.textContent = e.error === 'not-allowed' ? 'Браузер не дал доступ к микрофону.' : 'Здесь диктовка не работает. Открой сайт в Chrome или включи диктовку компьютера.';
+        err.hidden = false;
+      };
+      rec.onend = () => { rec = null; btn.setAttribute('aria-pressed', 'false'); btn.lastChild.textContent = 'Надиктовать'; };
+      err.hidden = true;
+      try { rec.start(); } catch { rec = null; return; }
+      btn.setAttribute('aria-pressed', 'true'); btn.lastChild.textContent = 'Остановить';
+    } }, icon('mic'), h('span', {}, 'Надиктовать'));
+    return h('div', { class: 'row' }, btn, h('span', { class: 'hint' }, 'В Chrome речь распознаёт Google.'));
+  }
+
+  async function run(mode) {
+    rec?.abort();
+    stop = new AbortController();
+    show('Помощник думает', h('p', { class: 'thinking', role: 'status' }, mode === 'tidy' ? 'Смотрю на доску. Обычно это до минуты.' : 'Раскладываю на задачи. Обычно это до минуты.'),
+      h('div', { class: 'row' }, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: () => { stop.abort(); start(); } }, 'Отмена')));
+    const mine = stop;
+    try {
+      const r = await api('POST', '/api/assistant', { mode, text: draft, project_id: projectId, today: today() }, mine.signal);
+      if (!mine.signal.aborted) review(r, mode);
+    } catch (e) { if (!mine.signal.aborted) start(e.message); }
+  }
+
+  function review({ note, changes, dropped }, mode) {
+    const back = h('button', { class: 'btn', type: 'button', onclick: () => start() }, 'Назад');
+    if (!changes.length) {
+      return show('Менять нечего', note ? h('p', {}, note) : null, h('div', { class: 'row' }, h('span', { class: 'grow' }), back, h('button', { class: 'btn main', type: 'button', onclick: close }, 'Понятно')));
+    }
+    const err = h('p', { class: 'err', role: 'alert', hidden: true });
+    const apply = h('button', { class: 'btn main', type: 'button', onclick: async () => {
+      const chosen = changes.filter((_, i) => boxes[i].checked);
+      apply.disabled = true;
+      try {
+        const r = await api('POST', '/api/assistant/apply', { changes: chosen });
+        if (mode === 'dictate') draft = '';
+        close();
+        await reload();
+        toast(`Готово: ${plural(r.applied, 'изменение', 'изменения', 'изменений')}${r.skipped ? `, пропущено ${r.skipped}: задачу уже поменяли` : ''}`, r.applied ? { label: 'Отменить', fn: undoAssistant } : null);
+      } catch (e) { err.textContent = e.message; err.hidden = false; apply.disabled = false; }
+    } });
+    const boxes = changes.map(c => h('input', { type: 'checkbox', checked: c.kind !== 'delete', onchange: count }));
+    function count() { const n = boxes.filter(b => b.checked).length; apply.textContent = `Применить: ${n}`; apply.disabled = !n; }
+    count();
+    const group = (kind, title) => {
+      const rows = changes.map((c, i) => c.kind === kind ? proposal(c, boxes[i]) : null).filter(Boolean);
+      return rows.length ? h('section', {}, h('h3', {}, `${title}: ${rows.length}`), h('div', { class: 'proposals' }, rows)) : null;
+    };
+    show('Что предлагаю', note ? h('p', {}, note) : null,
+      dropped ? h('p', { class: 'hint' }, 'Часть данных отброшена: там были неизвестные люди, проекты, задачи или неверные даты.') : null,
+      group('create', 'Новые задачи'), group('update', 'Поправить'), group('delete', 'Удалить'), err,
+      h('div', { class: 'row sticky' }, back, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: close }, 'Ничего не менять'), apply));
+  }
+
+  dlg.showModal();
+  start();
+}
+const FIELD = { title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Делает', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
+function fieldText(k, v) {
+  if (v === null || v === undefined) return 'пусто';
+  if (k === 'project_id') return projectName(v);
+  if (k === 'function_id') return state.functions.find(f => f.id === v)?.name ?? v;
+  return k === 'start' || k === 'due' ? dayText(v) : v;
+}
+function proposal(c, box) {
+  const rows = Object.entries(c.after ?? {}).filter(([k]) => c.kind !== 'create' || k !== 'title');
+  return h('label', { class: 'proposal' }, box, h('div', {}, h('b', {}, c.title),
+    rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, FIELD[k]), h('dd', {}, c.kind === 'update' ? [h('s', {}, fieldText(k, c.before[k])), ' → '] : null, fieldText(k, v))])) : null,
+    c.reason ? h('p', { class: 'hint' }, c.reason) : null));
+}
+function undoAssistant() {
+  attempt(async () => {
+    const r = await api('POST', '/api/assistant/undo', {});
+    await reload();
+    toast(r.skipped ? 'Отменил. Что ты поправил после помощника, не тронул' : 'Отменил изменения помощника');
+  });
+}
+let fabReady = false;
+function fab() {
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  const item = (ico, name, fn) => h('button', { type: 'button', onclick: () => { close(); btn.focus(); fn(); } }, icon(ico), name);
+  const menu = h('div', { class: 'fab-menu', hidden: true },
+    state.me.owner ? item('project', 'Новый проект', () => projectDialog()) : null,
+    item('tasks', 'Новая задача', () => taskDialog(null, { project_id: pageProject() })),
+    state.me.owner ? item('person', 'Новый человек', () => personDialog()) : null);
+  const btn = h('button', { class: 'fab-btn', type: 'button', 'aria-label': 'Добавить', 'aria-expanded': 'false', onclick: () => { menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); } }, icon('plus'));
+  fab.close = close;
+  if (!fabReady) {
+    fabReady = true;
+    addEventListener('click', e => { if (!$('#fab').contains(e.target)) fab.close(); });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && $('#fab').querySelector('.fab-menu:not([hidden])')) { fab.close(); $('#fab .fab-btn').focus(); } });
+  }
+  $('#fab').replaceChildren(menu, btn);
+}
+function render() {
+  const key = document.activeElement?.dataset?.key;
+  const p = pageProject();
+  const page = p ? 'project' : here().startsWith('#/tasks') ? 'tasks' : here().startsWith('#/settings') ? 'settings' : 'home';
+  month ??= thisMonth();
+  const scroll = document.querySelector('.cal-scroll')?.scrollLeft;
+  $('#view').replaceChildren(...{ project: () => project(p), tasks, settings, home }[page]());
+  const late = state.tasks.filter(isLate).length;
+  $('#nav').replaceChildren(...[['home', '#/', 'Главная'], ['tasks', '#/tasks', 'Задачи'], ['settings', '#/settings', 'Настройки']].map(([k, href, name]) =>
+    h('a', { href, 'data-key': `nav-${k}`, 'aria-current': page === k ? 'page' : null }, h('span', { class: 'nav-ico' }, icon(k),
+      k === 'tasks' && late ? h('span', { class: 'badge', role: 'img', 'aria-label': `Просрочено: ${late}` }, String(late)) : null), name)));
+  if (key) document.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+  const box = document.querySelector('.cal-scroll');
+  if (box && scroll !== undefined) box.scrollLeft = scroll;
+  else if (box) box.scrollLeft = (box.querySelector('.day.now')?.offsetLeft ?? 0) - 20;
+}
+function takeLink() {
+  const id = REMOTE && location.hash.match(/^#\/k\/([\w-]{20,})$/)?.[1];
+  if (!id) return false;
+  if (id !== backend) { backend = id; state = null; store('backend', id); store('state', ''); }
+  history.replaceState(null, '', '#/');
+  return true;
+}
+async function enterRemote() {
+  takeLink();
+  if (!backend) {
+    document.body.classList.add('auth');
+    $('#nav').replaceChildren(); $('#fab').replaceChildren();
+    $('#view').replaceChildren(h('div', { class: 'auth-card' }, h('h1', {}, 'Закрытый сайт'), h('p', {}, 'Открой его по приватной ссылке.')));
+    return;
+  }
+  try { const old = JSON.parse(load('state')); if (old?.tasks) { state = old; document.body.classList.remove('auth'); render(); fab(); } } catch { /* нет прошлой — подождём свежую */ }
+  if (!state) $('#view').replaceChildren(h('div', { class: 'blank' }, 'Загружаю доску…'));
+  await enter();
+}
+function moved() {
+  if (REMOTE && (takeLink() || !backend)) { enterRemote().catch(e => toast(e.message)); return; }
+  if (/^#\/(invite|link)\//.test(here())) state = null;
+  if (!state) { authScreen(); return; }
+  render();
+  scrollTo(0, 0);
+  $('#view').focus({ preventScroll: true });
+}
+if (GAS) {
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#/"]');
+    if (!a || e.defaultPrevented) return;
+    e.preventDefault();
+    go(a.getAttribute('href'));
+  });
+} else addEventListener('hashchange', moved);
+let loadedAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !state || unsaved || $('#dialog').open || dragged || Date.now() - loadedAt < 15000) return;
+  if (document.activeElement?.matches('input, textarea, select')) return;
+  reload().catch(() => {});
+});
+try {
+  if (GAS) await enter();
+  else if (REMOTE) await enterRemote();
+  else {
+    const { me } = await api('GET', '/api/me');
+    if (me && !/^#\/(invite|link)\//.test(location.hash)) await enter(); else await authScreen();
+  }
+} catch (e) { if (state) toast(e.message); else $('#view').replaceChildren(h('div', { class: 'blank' }, `${e.message}. Обнови страницу.`)); }
+
+})();
+</script>
+</body>
+</html>
