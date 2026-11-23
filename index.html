@@ -775,8 +775,8 @@ function planNumbers(x) {
 }
 function decompBlock(p) {
   if (!planMonth) planMonth = thisMonth();
-  const months = [...new Set([...Array.from({ length: 9 }, (_, i) => shiftMonth(thisMonth(), i - 6)), ...state.plans.filter(x => x.project_id === p.id).map(x => x.month)])].sort().reverse();
-  const plan = state.plans.find(x => x.project_id === p.id && x.month === planMonth) ?? null;
+  const months = [...new Set([...Array.from({ length: 9 }, (_, i) => shiftMonth(thisMonth(), i - 6)), ...(state.plans ?? []).filter(x => x.project_id === p.id).map(x => x.month)])].sort().reverse();
+  const plan = (state.plans ?? []).find(x => x.project_id === p.id && x.month === planMonth) ?? null;
   const P = planNumbers(plan);
   let c = null;
   if (p.sheet) { loadCrm(p); c = crm[p.id]; }
