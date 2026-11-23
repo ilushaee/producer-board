@@ -659,7 +659,7 @@ function projectCard(p, sum) {
   const list = state.tasks.filter(t => t.project_id === p.id && t.status !== 'done');
   const late = list.filter(isLate).length;
   return h('a', { class: `card ${projectColor(p.id)}`, href: `#/p/${p.id}` },
-    h('div', { class: 'card-top' }, h('h2', {}, p.name), h('span', { class: 'pill' }, MODEL[p.model])),
+    h('div', { class: 'card-top' }, h('h2', {}, p.name), p.niche ? h('span', { class: 'pill' }, p.niche) : null),
     h('div', { class: 'card-body' },
       state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
       h('p', { class: 'foot' }, list.length ? plural(list.length, 'открытая задача', 'открытые задачи', 'открытых задач') : 'Открытых задач нет',
@@ -678,7 +678,7 @@ function project(id) {
   const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
   return [
     hero({
-      crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: MODEL[p.model],
+      crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: p.niche ?? null,
       action: state.me.owner ? [h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить'),
         REMOTE ? h('button', { class: 'btn', type: 'button', 'data-key': 'share-project', onclick: () => shareDialogOwner(p) }, p.share ? 'Ссылка ✓' : 'Поделиться') : null] : null,
       strip: [state.me.money ? meta('Месяц', picker) : null, state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
@@ -1261,7 +1261,7 @@ function taskDialog(t, preset = {}) {
 function projectDialog(p) {
   openDialog(p ? 'Проект' : 'Новый проект', [
     input('Название', 'name', p?.name, { required: true, maxlength: 60 }),
-    h('label', {}, 'Модель', select(Object.entries(MODEL), p?.model ?? 'mentorship', { name: 'model' })),
+    SHEETS ? input('Ниша', 'niche', p?.niche, { maxlength: 60, placeholder: 'Например: психология, фитнес, финансы' }) : h('label', {}, 'Модель', select(Object.entries(MODEL), p?.model ?? 'mentorship', { name: 'model' })),
     SHEETS ? input('Таблица проекта', 'sheet', p?.sheet, { type: 'url', placeholder: 'Ссылка на Google-таблицу' }) : null,
     SHEETS ? h('p', { class: 'hint' }, 'Из неё подтянутся лиды и выручка. Сайт таблицу только читает. Можно оставить пустым.') : null,
   ], {
@@ -1687,7 +1687,7 @@ function drawShare(d) {
   const by = st => d.tasks.filter(t => !t.repeat && t.status === st);
   const recent = by('done').sort((a, b) => (b.done ?? '') < (a.done ?? '') ? -1 : 1).slice(0, 15);
   $('#view').replaceChildren(
-    hero({ crumbs: 'Проект', title: d.project.name, side: MODEL[d.project.model], strip: [
+    hero({ crumbs: 'Проект', title: d.project.name, side: d.project.niche ?? null, strip: [
       meta('Открыто', h('b', { class: 'big' }, String(open.length))), meta('Просрочено', h('b', { class: late ? 'big bad' : 'big' }, String(late))),
       meta('Обновлено', h('b', {}, new Date(d.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })))] }),
     h('p', { class: 'hint share-note' }, 'Только просмотр. Страница обновляется сама раз в минуту.'),
