@@ -569,7 +569,7 @@ function hero({ crumbs, title, action, side, strip }) {
     strip ? h('div', { class: 'strip' }, strip) : null);
 }
 function monthSelect() {
-  const list = [...new Set([thisMonth(), ...state.daily.map(d => d.date.slice(0, 7)), ...state.projects.flatMap(p => Object.keys(p.revenue ?? {}))])].sort().reverse();
+  const list = [...new Set([thisMonth(), ...state.daily.map(d => d.date.slice(0, 7)), ...state.projects.flatMap(p => Object.keys(p.revenue ?? {}))])].filter(m => m <= thisMonth()).sort().reverse();
   if (!list.includes(month)) month = thisMonth();
   return select(list.map(m => [m, monthTitle(m)]), month, { 'aria-label': 'Месяц', 'data-key': 'month', onchange: e => { month = e.target.value; render(); } });
 }
