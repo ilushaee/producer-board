@@ -595,7 +595,8 @@ function home() {
       meta('Просрочено задач', lateLink(late, 'tasks')),
     ] }),
     h('div', { class: 'toolbar' }, h('b', {}, plural(state.projects.length, 'проект', 'проекта', 'проектов')),
-      state.me.owner ? h('button', { class: 'btn main', type: 'button', 'data-key': 'add-project', onclick: () => projectDialog() }, icon('plus'), 'Добавить проект') : null),
+      state.me.owner ? h('button', { class: 'btn main', type: 'button', 'data-key': 'add-project', onclick: () => projectDialog() }, icon('plus'), 'Добавить проект') : null,
+      state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant-home', onclick: () => assistantDialog(null) }, icon('spark'), 'Помощник') : null),
     state.projects.length
       ? h('div', { class: 'cards' }, state.projects.map((p, i) => projectCard(p, sums[i])))
       : h('div', { class: 'blank' }, 'Проектов пока нет. Добавь первый.'),
@@ -669,7 +670,7 @@ const CLOSED = /оплач|купил|отказ|не ца|закрыт/i;
 const LEAD_ORDER = ['назначен зум', 'думает', 'отложил', 'пропал'];
 function leadsView(c) {
   const L = c.leads;
-  if (!L) return [h('div', { class: 'blank' }, 'В таблице нет листа с лидами. Нужен лист со словом «Лиды» в названии и столбцами «Имя» и «Статус».')];
+  if (!L) return [h('div', { class: 'blank' }, 'В таблице не нашёл лидов. Нужен лист со столбцами «Имя» и «Статус» в первой строке.')];
   const st = x => x.status || 'Без статуса';
   const all = [...new Set(L.items.map(st))];
   const rank = s => { const i = LEAD_ORDER.indexOf(s.toLowerCase()); return i < 0 ? 99 : i; };
@@ -1289,7 +1290,7 @@ function assistantDialog(projectId) {
   const close = () => dlg.close();
   dlg.addEventListener('close', () => { stop?.abort(); rec?.abort(); dlg.classList.remove('roomy'); }, { once: true });
   dlg.classList.add('roomy');
-  const where = projectId ? `Проект: ${projectName(projectId)}` : 'Все проекты';
+  const where = projectId ? `Проект: ${projectName(projectId)}` : state.me.owner ? 'Все проекты. Можно завести новый: «Новый проект Маша, клуб. Задачи: …»' : 'Все проекты';
   const undoBtn = () => state.assistant.undo ? h('button', { class: 'link', type: 'button', onclick: () => { close(); undoAssistant(); } }, 'Отменить последние изменения помощника') : null;
 
   function start(error) {
@@ -1359,10 +1360,12 @@ function assistantDialog(projectId) {
         if (mode === 'dictate') draft = '';
         close();
         await reload();
+        if (r.project_id) go(`#/p/${r.project_id}`);
         toast(`Готово: ${plural(r.applied, 'изменение', 'изменения', 'изменений')}${r.skipped ? `, пропущено ${r.skipped}: задачу уже поменяли` : ''}`, r.applied ? { label: 'Отменить', fn: undoAssistant } : null);
       } catch (e) { err.textContent = e.message; err.hidden = false; apply.disabled = false; }
     } });
     const boxes = changes.map(c => h('input', { type: 'checkbox', checked: c.kind !== 'delete', onchange: count }));
+    newProject = changes.find(c => c.kind === 'project')?.title ?? '';
     function count() { const n = boxes.filter(b => b.checked).length; apply.textContent = `Применить: ${n}`; apply.disabled = !n; }
     count();
     const group = (kind, title) => {
@@ -1371,22 +1374,24 @@ function assistantDialog(projectId) {
     };
     show('Что предлагаю', note ? h('p', {}, note) : null,
       dropped ? h('p', { class: 'hint' }, 'Часть данных отброшена: там были неизвестные люди, проекты, задачи или неверные даты.') : null,
-      group('create', 'Новые задачи'), group('update', 'Поправить'), group('delete', 'Удалить'), err,
+      group('project', 'Новый проект'), group('create', 'Новые задачи'), group('update', 'Поправить'), group('delete', 'Удалить'), err,
       h('div', { class: 'row sticky' }, back, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: close }, 'Ничего не менять'), apply));
   }
 
   dlg.showModal();
   start();
 }
-const FIELD = { title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Делает', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
+let newProject = ''; // название проекта, который помощник предлагает завести
+const FIELD = { name: 'Название', model: 'Модель', title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Делает', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
 function fieldText(k, v) {
   if (v === null || v === undefined) return 'пусто';
-  if (k === 'project_id') return projectName(v);
+  if (k === 'project_id') return v === 'new' ? `новый «${newProject}»` : projectName(v);
+  if (k === 'model') return MODEL[v] ?? v;
   if (k === 'function_id') return state.functions.find(f => f.id === v)?.name ?? v;
   return k === 'start' || k === 'due' ? dayText(v) : v;
 }
 function proposal(c, box) {
-  const rows = Object.entries(c.after ?? {}).filter(([k]) => c.kind !== 'create' || k !== 'title');
+  const rows = Object.entries(c.after ?? {}).filter(([k]) => (c.kind !== 'create' || k !== 'title') && (c.kind !== 'project' || k !== 'name'));
   return h('label', { class: 'proposal' }, box, h('div', {}, h('b', {}, c.title),
     rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, FIELD[k]), h('dd', {}, c.kind === 'update' ? [h('s', {}, fieldText(k, c.before[k])), ' → '] : null, fieldText(k, v))])) : null,
     c.reason ? h('p', { class: 'hint' }, c.reason) : null));
