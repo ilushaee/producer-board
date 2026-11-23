@@ -615,7 +615,9 @@ function tasksBlock(list, filter, projectId) {
   const draw = () => {
     const shown = list.filter(t => matches(t, filter));
     count.textContent = plural(shown.length, 'задача', 'задачи', 'задач');
+    const left = results.querySelector('.board')?.scrollLeft;
     results.replaceChildren(view === 'calendar' ? calendar(shown, projectId === null) : board(shown, projectId === null, shownColumns(filter), add));
+    if (left) results.querySelector('.board')?.scrollTo({ left, behavior: 'instant' });
   };
   draw();
   return [
@@ -1274,13 +1276,14 @@ function render() {
   const p = pageProject();
   const page = p ? 'project' : here().startsWith('#/tasks') ? 'tasks' : here().startsWith('#/settings') ? 'settings' : 'home';
   month ??= thisMonth();
-  const scroll = document.querySelector('.cal-scroll')?.scrollLeft;
+  const scroll = document.querySelector('.cal-scroll')?.scrollLeft, boardLeft = document.querySelector('.board')?.scrollLeft;
   $('#view').replaceChildren(...{ project: () => project(p), tasks, settings, home }[page]());
   const late = state.tasks.filter(isLate).length;
   $('#nav').replaceChildren(...[['home', '#/', 'Главная'], ['tasks', '#/tasks', 'Задачи'], ['settings', '#/settings', 'Настройки']].map(([k, href, name]) =>
     h('a', { href, 'data-key': `nav-${k}`, 'aria-current': page === k ? 'page' : null }, h('span', { class: 'nav-ico' }, icon(k),
       k === 'tasks' && late ? h('span', { class: 'badge', role: 'img', 'aria-label': `Просрочено: ${late}` }, String(late)) : null), name)));
   if (key) document.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+  if (boardLeft) document.querySelector('.board')?.scrollTo({ left: boardLeft, behavior: 'instant' });
   const box = document.querySelector('.cal-scroll');
   if (box && scroll !== undefined) box.scrollLeft = scroll;
   else if (box) box.scrollLeft = (box.querySelector('.day.now')?.offsetLeft ?? 0) - 20;
