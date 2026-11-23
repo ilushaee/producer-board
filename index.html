@@ -332,6 +332,15 @@ table.shares { width: 100%; border-collapse: collapse; font-variant-numeric: tab
   dl.fields dd { margin-bottom: 8px; }
   .shares th, .shares td { padding: 10px 12px; }
 }
+
+/* описание задачи */
+dialog label textarea.field { min-height: 92px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; }
+.links:empty { display: none; }
+.links a { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 5px 10px; border-radius: 999px; background: var(--glass-2); color: var(--ink); font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
+.links a:hover { text-decoration: underline; }
+.kcard .m.note { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.key-err { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 156, 156, .12); font-size: 15px; }
 </style>
 </head>
 <body>
@@ -432,6 +441,7 @@ const ICONS = {
   filter: svg('<path d="M4 5h16l-6.5 7.5V19l-3-1.5v-5z"/>', 16),
   board: svg('<rect x="4" y="4" width="6.5" height="16" rx="2"/><rect x="13.5" y="4" width="6.5" height="10" rx="2"/>', 16),
   project: svg('<path d="M4 7a2 2 0 0 1 2-2h4l2 2.5h6a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>', 17),
+  link: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>', 14),
 };
 const icon = name => { const el = h('span', { class: 'ico', 'aria-hidden': 'true' }); el.innerHTML = ICONS[name]; return el; };
 function load(k) { try { return localStorage.getItem(k); } catch { return null; } }
@@ -828,7 +838,18 @@ function card(t, showProject) {
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
     h('div', { class: 'm' }, 'Делает: ', t.person ?? 'не назначено'),
-    h('div', { class: 'm' }, 'Проверяет: ', t.controller ?? 'не назначено'));
+    h('div', { class: 'm' }, 'Проверяет: ', t.controller ?? 'не назначено'),
+    t.note ? h('div', { class: 'm note' }, icon('link'), linksIn(t.note).length ? plural(linksIn(t.note).length, 'ссылка', 'ссылки', 'ссылок') : 'есть описание') : null);
+}
+const linksIn = text => [...new Set((String(text ?? '').match(/https?:\/\/[^\s<>"«»]+/gi) || []).map(u => u.replace(/[.,;:!?)\]]+$/, '')))];
+const shortUrl = u => { try { const x = new URL(u); const rest = (x.pathname + x.search).replace(/\/$/, ''); return x.host.replace(/^www\./, '') + (rest.length > 28 ? `${rest.slice(0, 27)}…` : rest); } catch { return u; } };
+function noteField(v) {
+  const list = h('div', { class: 'links' });
+  const draw = () => list.replaceChildren(...linksIn(area.value).map(u => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', {}, shortUrl(u)))));
+  const area = h('textarea', { class: 'field', name: 'note', rows: 4, maxlength: 5000, placeholder: 'Подробности, ссылки на материалы, доски, документы', oninput: () => draw() });
+  area.value = v ?? '';
+  draw();
+  return h('label', {}, 'Описание', area, list);
 }
 function nextCard(cards, y) {
   return [...cards.querySelectorAll('.kcard')].find(c => {
@@ -1029,11 +1050,12 @@ function functionField(current) {
     h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
 }
 let tempId = 0;
-const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status });
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null } : {}) });
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
     input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
+    SHEETS ? noteField(v.note) : null,
     h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id' })),
     functionField(v.function_id ?? ''),
     h('div', { class: 'two' },
@@ -1235,15 +1257,20 @@ async function enter() {
   document.body.classList.remove('auth');
   await reload();
 }
+let keyProblem = ''; // ошибка ключа переживает перерисовку страницы
 function assistantSettings() {
   const ready = state.assistant.ready;
-  const err = h('p', { class: 'err', role: 'alert', hidden: true });
+  const err = h('p', { class: 'err key-err', role: 'alert', hidden: !keyProblem || ready }, ready ? '' : keyProblem);
   const btn = h('button', { class: 'btn main' }, 'Сохранить');
   const form = h('form', { class: 'key-form', onsubmit: async e => {
     e.preventDefault();
-    btn.disabled = true; btn.textContent = 'Проверяю…'; err.hidden = true;
+    btn.disabled = true; btn.textContent = 'Проверяю ключ…'; err.hidden = true; keyProblem = '';
     try { await api('POST', '/api/assistant/key', { key: new FormData(form).get('key') }); await reload(); toast('Ключ сохранён, помощник готов'); }
-    catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Сохранить'; }
+    catch (x) {
+      keyProblem = `Ключ не сохранился. ${x.message}`;
+      err.textContent = keyProblem; err.hidden = false; btn.disabled = false; btn.textContent = 'Сохранить';
+      toast(keyProblem);
+    }
   } }, h('input', { class: 'field', type: 'password', name: 'key', placeholder: 'sk-ant-…', 'aria-label': 'Ключ Claude API', autocomplete: 'off', required: true }), btn);
   return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Помощник'),
     h('p', {}, ready ? 'Ключ Claude сохранён, помощник работает.' : ['Нужен ключ Claude API: ', h('a', { href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'консоль Claude'), ' → API Keys. Оплачивается отдельно от подписки.'])),
