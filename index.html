@@ -736,7 +736,7 @@ function moneyView(c) {
 }
 function members(filter) {
   if (!state.people.length) return null;
-  return h('div', { class: 'members' }, h('span', { class: 'label' }, 'Кто делает'), h('div', { class: 'names' }, state.people.map(p =>
+  return h('div', { class: 'members' }, h('span', { class: 'label' }, 'Ответственный'), h('div', { class: 'names' }, state.people.map(p =>
     h('button', { class: 'name', type: 'button', 'aria-pressed': String(filter.person.has(p.name)), 'data-key': `who-${p.id}`,
       onclick: () => { if (!filter.person.delete(p.name)) filter.person.add(p.name); render(); } }, p.name))));
 }
@@ -777,7 +777,7 @@ function tasksBlock(list, filter, projectId) {
 function filterGroups(projectId) {
   return [
     projectId === null && ['project', 'Проект', [...state.projects.map(p => [String(p.id), p.name]), ['none', 'Без проекта']]],
-    ['person', 'Кто делает', [...state.people.map(p => [p.name, p.name]), ['none', 'Не назначено']]],
+    ['person', 'Ответственный', [...state.people.map(p => [p.name, p.name]), ['none', 'Не назначено']]],
     ['status', 'Состояние', [...Object.entries(STATUS), ['late', 'Просрочено']]],
   ].filter(Boolean);
 }
@@ -853,8 +853,8 @@ function card(t, showProject) {
       h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null)),
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
-    h('div', { class: 'm' }, 'Делает: ', t.person ?? 'не назначено'),
-    h('div', { class: 'm' }, 'Проверяет: ', t.controller ?? 'не назначено'),
+    h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
+    t.controller ? h('div', { class: 'm' }, 'Проверяет: ', t.controller) : null,
     t.note ? h('div', { class: 'm note' }, icon('link'), linksIn(t.note).length ? plural(linksIn(t.note).length, 'ссылка', 'ссылки', 'ссылок') : 'есть описание') : null);
 }
 const linksIn = text => [...new Set((String(text ?? '').match(/https?:\/\/[^\s<>"«»]+/gi) || []).map(u => u.replace(/[.,;:!?)\]]+$/, '')))];
@@ -989,11 +989,11 @@ function settings() {
     const does = state.functions.filter(f => f.person === p.name).length, checks = state.functions.filter(f => f.controller === p.name).length;
     const open = state.tasks.filter(t => t.person === p.name && t.status !== 'done').length;
     return h('button', { class: 'line', type: 'button', 'data-key': `person-${p.id}`, onclick: () => personDialog(p) },
-      h('b', {}, p.name), state.me.open ? null : h('span', {}, ACCESS[p.access]), h('span', {}, `Делает: ${plural(does, 'функция', 'функции', 'функций')}`),
-      h('span', {}, `Проверяет: ${plural(checks, 'функция', 'функции', 'функций')}`), h('span', {}, `Открытых задач: ${open}`));
+      h('b', {}, p.name), state.me.open ? null : h('span', {}, ACCESS[p.access]), h('span', {}, `Отвечает за ${plural(does, 'функцию', 'функции', 'функций')}`),
+      checks ? h('span', {}, `Проверяет: ${plural(checks, 'функция', 'функции', 'функций')}`) : null, h('span', {}, `Открытых задач: ${open}`));
   };
   const fn = f => h('button', { class: 'line', type: 'button', 'data-key': `fn-${f.id}`, onclick: () => functionDialog(f) },
-    h('span', {}, f.name, f.note ? h('span', { class: 'hint' }, f.note) : null), h('span', {}, `Делает: ${f.person ?? 'не указано'}`), h('span', {}, `Проверяет: ${f.controller ?? 'не указано'}`));
+    h('span', {}, f.name, f.note ? h('span', { class: 'hint' }, f.note) : null), h('span', {}, `Ответственный: ${f.person ?? 'не указан'}`), f.controller ? h('span', {}, `Проверяет: ${f.controller}`) : null);
   if (!state.me.owner) return [hero({ title: 'Настройки' }), mySection()];
   return [
     hero({ title: 'Настройки' }),
@@ -1076,8 +1076,8 @@ function taskDialog(t, preset = {}) {
     h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id' })),
     functionField(v.function_id ?? ''),
     h('div', { class: 'two' },
-      h('label', {}, 'Кто делает', select(peopleOptions(), v.person ?? '', { name: 'person' })),
-      h('label', {}, 'Кто проверяет', select(peopleOptions(), v.controller ?? '', { name: 'controller' }))),
+      h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' })),
+      h('label', {}, 'Проверяет (если нужно)', select(peopleOptions(), v.controller ?? '', { name: 'controller' }))),
     h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date' }), input('Конец', 'due', v.due, { type: 'date' })),
     h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
   ], t ? {
@@ -1127,7 +1127,7 @@ function personDialog(p) {
   const inTasks = p ? state.tasks.filter(t => t.person === p.name || t.controller === p.name).length : 0;
   openDialog(p ? p.name : 'Новый человек', [
     input('Имя', 'name', p?.name, { required: true, maxlength: 40 }),
-    pick('Что делает', 'does', 'person'), pick('Что проверяет', 'checks', 'controller'),
+    pick('За что отвечает', 'does', 'person'), pick('Что проверяет', 'checks', 'controller'),
     p && SHEETS && state.telegram?.ready && state.me.owner ? telegramPerson(p) : null,
   ], {
     label: p ? 'Сохранить' : 'Добавить',
@@ -1146,8 +1146,8 @@ function functionDialog(f) {
     input('Отдел', 'dept', f?.dept, { required: true, maxlength: 60, list: 'depts' }),
     h('datalist', { id: 'depts' }, departments().map(d => h('option', { value: d }))),
     h('div', { class: 'two' },
-      h('label', {}, 'Кто делает', select(peopleOptions(), f?.person ?? '', { name: 'person' })),
-      h('label', {}, 'Кто проверяет', select(peopleOptions(), f?.controller ?? '', { name: 'controller' }))),
+      h('label', {}, 'Ответственный', select(peopleOptions(), f?.person ?? '', { name: 'person' })),
+      h('label', {}, 'Проверяет (если нужно)', select(peopleOptions(), f?.controller ?? '', { name: 'controller' }))),
   ], {
     label: f ? 'Сохранить' : 'Добавить',
     save: v => f ? api('PATCH', `/api/functions/${f.id}`, v) : api('POST', '/api/functions', v),
@@ -1443,7 +1443,7 @@ function assistantDialog(projectId) {
   start();
 }
 let newProject = ''; // название проекта, который помощник предлагает завести
-const FIELD = { name: 'Название', model: 'Модель', title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Делает', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
+const FIELD = { name: 'Название', model: 'Модель', title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Ответственный', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
 function fieldText(k, v) {
   if (v === null || v === undefined) return 'пусто';
   if (k === 'project_id') return v === 'new' ? `новый «${newProject}»` : projectName(v);
