@@ -431,6 +431,11 @@ ol.steps a { color: var(--ink); }
 .stage-list.compact .stage-main b { font-size: 14px; font-weight: 550; }
 .stage-list.compact .stage-state { font-size: 12px; padding: 2px 8px; }
 .stage-list.compact .stage-progress { gap: 2px; }
+/* Вкладки и переключатели не шире экрана: лишнее прокручивается внутри, а не растягивает страницу. */
+.switch { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.switch::-webkit-scrollbar { display: none; }
+.switch button { flex: none; }
+.toolbar > * { min-width: 0; }
 </style>
 </head>
 <body>
