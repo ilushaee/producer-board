@@ -358,6 +358,21 @@ ol.steps a { color: var(--ink); }
 .repeat .day input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .col-repeat { background: linear-gradient(180deg, rgba(122, 108, 255, .10), transparent 60%); }
 .kcard .done-once { margin-top: 8px; padding: 6px 12px; min-height: 0; font-size: 13px; }
+/* декомпозиция */
+.plan-row { margin: 14px 0; }
+.plan-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.plan-cell { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); }
+.plan-cell span { color: var(--ink-2); font-size: 12px; }
+.plan-cell b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.plan-cell.good b, .plan-done .good { color: #7be0a3; }
+.plan-cell.low b, .plan-done .low { color: var(--bad); }
+.plan-done { margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); display: grid; gap: 10px; }
+.plan-done-head { display: flex; justify-content: space-between; align-items: baseline; }
+.plan-done-head b { font-size: 24px; }
+.bar { position: relative; height: 12px; border-radius: 999px; background: var(--glass-2); overflow: visible; }
+.bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #9b6cf5); }
+.bar-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .7; }
+@media (max-width: 700px) { .plan-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } .plan-cell b { font-size: 17px; } }
 </style>
 </head>
 <body>
@@ -656,9 +671,9 @@ function project(id) {
   const picker = monthSelect();
   const sum = revenue(id);
   const list = state.tasks.filter(t => t.project_id === id);
-  const tabs = p.sheet ? [['tasks', 'Задачи'], ['leads', 'Лиды'], ...(state.me.money ? [['money', 'Деньги']] : [])] : [['tasks', 'Задачи']];
+  const tabs = [['tasks', 'Задачи'], ...(p.sheet ? [['leads', 'Лиды']] : []), ...(p.sheet && state.me.money ? [['money', 'Деньги']] : []), ...(SHEETS && state.me.money ? [['decomp', 'Декомпозиция']] : [])];
   if (!tabs.some(([k]) => k === projectTab)) projectTab = 'tasks';
-  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : sheetPart(p, projectTab);
+  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
   return [
     hero({
       crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: MODEL[p.model],
@@ -746,6 +761,83 @@ function moneyView(c) {
       : h('div', { class: 'blank' }, 'За этот месяц в таблице нет цифр.'),
   ];
   return [...block(monthTitle(month), M.months[month]), ...(M.all ? block('За всё время', M.all) : [])];
+}
+let planMonth = null;
+const shiftMonth = (m, n) => { const d = new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+const PAID = /оплач|купил/i;
+const pct = v => (v === null || v === undefined || !isFinite(v) ? '—' : `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(v)}%`);
+const num = v => (v === null || v === undefined || !isFinite(v) ? '—' : new Intl.NumberFormat('ru-RU').format(Math.round(v)));
+function planNumbers(x) {
+  if (!x) return null;
+  const leads = x.base !== null && x.conv1 !== null ? Math.round(x.base * x.conv1 / 100) : null;
+  const buys = leads !== null && x.conv2 !== null ? Math.round(leads * x.conv2 / 100) : null;
+  return { base: x.base, conv1: x.conv1, leads, conv2: x.conv2, buys, revenue: buys !== null && x.check !== null ? buys * x.check : null, check: x.check };
+}
+function decompBlock(p) {
+  if (!planMonth) planMonth = thisMonth();
+  const months = [...new Set([...Array.from({ length: 9 }, (_, i) => shiftMonth(thisMonth(), i - 6)), ...state.plans.filter(x => x.project_id === p.id).map(x => x.month)])].sort().reverse();
+  const plan = state.plans.find(x => x.project_id === p.id && x.month === planMonth) ?? null;
+  const P = planNumbers(plan);
+  let c = null;
+  if (p.sheet) { loadCrm(p); c = crm[p.id]; }
+  const data = c?.data;
+  const L = data?.leads;
+  const inMonth = L ? (L.dated ? L.items.filter(x => x.month === planMonth) : L.items) : null;
+  const statBase = L?.stats.find(([k]) => /^база|подписчик|охват/i.test(k));
+  const F = {
+    base: plan?.base_fact ?? (statBase ? Number(String(statBase[1]).replace(/[^\d]/g, '')) || null : null),
+    leads: inMonth ? inMonth.length : null,
+    buys: inMonth ? inMonth.filter(x => PAID.test(x.status)).length : null,
+    revenue: data?.money?.months[planMonth] ? (data.money.months[planMonth].gross ?? data.money.months[planMonth].net) : null,
+  };
+  F.conv1 = F.base && F.leads !== null ? F.leads / F.base * 100 : null;
+  F.conv2 = F.leads && F.buys !== null ? F.buys / F.leads * 100 : null;
+  const done = P?.revenue && F.revenue !== null ? F.revenue / P.revenue * 100 : null;
+  const days = new Date(Date.UTC(Number(planMonth.slice(0, 4)), Number(planMonth.slice(5, 7)), 0)).getUTCDate();
+  const share = planMonth < thisMonth() ? 1 : planMonth > thisMonth() ? 0 : new Date().getDate() / days;
+  const row = (title, cells) => h('div', { class: 'plan-row' }, h('h3', { class: 'sub' }, title), h('div', { class: 'plan-cells' }, cells.map(([k, v, cls]) => h('div', { class: `plan-cell${cls ? ` ${cls}` : ''}` }, h('span', {}, k), h('b', {}, v)))));
+  const vs = (f, pl) => (f === null || pl === null || pl === undefined ? null : f >= pl ? 'good' : 'low');
+  return [
+    h('div', { class: 'toolbar' },
+      select(months.map(m => [m, monthTitle(m)]), planMonth, { 'aria-label': 'Месяц плана', 'data-key': 'plan-month', onchange: e => { planMonth = e.target.value; render(); } }),
+      h('span', { class: 'grow' }),
+      p.sheet && data ? h('span', { class: 'hint' }, 'Факт из таблицы проекта') : null,
+      p.sheet ? h('button', { class: 'btn', type: 'button', disabled: c?.loading, onclick: () => loadCrm(p, true) }, c?.loading ? 'Обновляю…' : 'Обновить') : null,
+      state.me.owner ? h('button', { class: 'btn main', type: 'button', 'data-key': 'plan-edit', onclick: () => planDialog(p, planMonth, plan) }, plan ? 'Изменить план' : 'Задать план') : null),
+    P ? row('План', [['База', num(P.base)], ['% в заявку', pct(P.conv1)], ['Заявок', num(P.leads)], ['% в продажу', pct(P.conv2)], ['Покупок', num(P.buys)], ['Выручка', P.revenue === null ? '—' : money(P.revenue)]])
+      : h('div', { class: 'blank' }, `На ${monthTitle(planMonth).toLowerCase()} плана нет. Задай базу, конверсии и средний чек — заявки, покупки и выручку посчитаю сам.`),
+    !p.sheet ? h('div', { class: 'blank' }, 'Факт берётся из таблицы проекта. Подключи её: «Изменить» → «Таблица проекта».')
+      : !data ? h('div', { class: 'blank' }, c?.error ?? 'Загружаю факт из таблицы…')
+      : row('Факт', [['База', num(F.base)], ['% в заявку', pct(F.conv1), vs(F.conv1, P?.conv1)], ['Заявок', num(F.leads)], ['% в продажу', pct(F.conv2), vs(F.conv2, P?.conv2)], ['Покупок', num(F.buys)], ['Выручка', F.revenue === null ? '—' : money(F.revenue)]]),
+    P && data ? h('div', { class: 'plan-done' },
+      h('div', { class: 'plan-done-head' }, h('span', {}, 'Выполнение плана по выручке'), h('b', { class: done !== null && done >= share * 100 ? 'good' : 'low' }, pct(done))),
+      h('div', { class: 'bar' }, h('div', { class: 'bar-fill', style: `width:${Math.min(100, done ?? 0)}%` }), share > 0 && share < 1 ? h('div', { class: 'bar-mark', style: `left:${share * 100}%`, title: 'Где надо быть сегодня' }) : null),
+      share > 0 && share < 1 ? h('p', { class: 'hint' }, `Чтобы идти ровно, к сегодня нужно ${P.revenue !== null ? money(Math.round(P.revenue * share)) : '—'} выручки и ${num(P.leads === null ? null : P.leads * share)} заявок. Сейчас ${F.revenue === null ? '—' : money(F.revenue)} и ${num(F.leads)}.`) : null) : null,
+    data && L && !L.dated ? h('p', { class: 'hint' }, 'В листе заявок нет столбца «Дата», поэтому заявки и покупки посчитаны за всё время. Добавь столбец «Дата» с датой заявки — буду считать по месяцам.') : null,
+    data && !F.base && P ? h('p', { class: 'hint' }, 'Базу в таблице не нашёл — её факт можно вписать в «Изменить план».') : null,
+  ];
+}
+function planDialog(p, m, plan) {
+  const preview = h('p', { class: 'hint' });
+  const field = (label, name, v, props) => input(label, name, v ?? '', { type: 'number', min: 0, step: 'any', inputmode: 'decimal', oninput: show, ...props });
+  const fields = [
+    h('div', { class: 'two' }, field('База', 'base', plan?.base, { placeholder: '2300' }), field('Средний чек, ₽', 'check', plan?.check, { placeholder: '24000' })),
+    h('div', { class: 'two' }, field('% в заявку', 'conv1', plan?.conv1, { max: 100, placeholder: '22' }), field('% в продажу', 'conv2', plan?.conv2, { max: 100, placeholder: '10' })),
+    preview,
+    field('База факт (если её нет в таблице)', 'base_fact', plan?.base_fact),
+  ];
+  function show() {
+    const f = Object.fromEntries(new FormData($('#dialog form')));
+    const n = k => (f[k] === '' || f[k] === undefined ? null : Number(f[k]));
+    const P = planNumbers({ base: n('base'), conv1: n('conv1'), conv2: n('conv2'), check: n('check') });
+    const n2 = (v, a, b, c) => (v === null ? `— ${c}` : plural(v, a, b, c));
+    preview.textContent = `Получится: ${n2(P.leads, 'заявка', 'заявки', 'заявок')} → ${n2(P.buys, 'покупка', 'покупки', 'покупок')} → ${P.revenue === null ? '—' : money(P.revenue)}.`;
+  }
+  openDialog(`План на ${monthTitle(m).toLowerCase()} · ${p.name}`, fields, {
+    save: f => api('PUT', `/api/projects/${p.id}/plan`, { month: m, ...f }),
+    after: () => toast('План сохранён'),
+  });
+  show();
 }
 function members(filter) {
   if (!state.people.length) return null;
