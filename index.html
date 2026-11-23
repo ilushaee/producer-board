@@ -303,6 +303,35 @@ a.btn { text-decoration: none; }
   .fab { right: 16px; bottom: calc(92px + env(safe-area-inset-bottom)); }
   #toast { bottom: calc(92px + env(safe-area-inset-bottom)); margin-left: 16px; max-width: calc(100vw - 100px); }
 }
+
+/* ---------- таблица проекта: лиды и деньги ---------- */
+.toolbar.tabs { margin-bottom: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px 20px; margin: 18px 0 0; padding: 16px 18px; border-radius: 20px; background: var(--glass); }
+.kcard.lead { cursor: pointer; }
+.kcard.lead .m + .m { margin-top: 4px; }
+.tag { flex: 0 1 auto; max-width: 60%; padding: 2px 9px; border-radius: 9px; background: var(--glass-2); color: var(--ink); font-size: 12.5px; overflow-wrap: anywhere; }
+.closed { display: grid; gap: 8px; margin-top: 18px; }
+.closed h3, h3.sub { margin: 22px 2px 0; font-size: 15px; }
+.closed h3 { margin-top: 0; }
+.closed details { padding: 10px 12px; border-radius: 16px; background: rgba(255, 255, 255, .045); }
+.closed summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
+.closed details .cards-list { margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+dl.fields { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 8px 16px; margin: 4px 0 8px; font-size: 15px; }
+dl.fields dt { color: var(--ink-2); }
+dl.fields dd { margin: 0; overflow-wrap: anywhere; }
+dl.fields a { color: var(--accent-2); }
+.shares-wrap { overflow-x: auto; margin-top: 12px; border-radius: 20px; background: var(--glass); }
+table.shares { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.shares th, .shares td { padding: 12px 16px; text-align: right; white-space: nowrap; }
+.shares th:first-child, .shares td:first-child { text-align: left; }
+.shares th { color: var(--ink-2); font-size: 12.5px; font-weight: 600; }
+.shares tbody tr { border-top: 1px solid var(--line); }
+.shares td.bad { color: var(--bad); }
+@media (max-width: 640px) {
+  dl.fields { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.fields dd { margin-bottom: 8px; }
+  .shares th, .shares td { padding: 10px 12px; }
+}
 </style>
 </head>
 <body>
@@ -526,6 +555,8 @@ function select(opts, current, props) {
 const projectOptions = () => [['', 'Без проекта'], ...state.projects.map(p => [String(p.id), p.name])];
 const peopleOptions = () => [['', 'Не назначено'], ...state.people.map(p => [p.name, p.name])];
 function revenue(projectId) {
+  const p = state.projects.find(x => x.id === projectId);
+  if (p?.sheet) return p.revenue?.[month] ?? null; // из таблицы проекта, после налога
   const rows = state.daily.filter(d => d.project_id === projectId && d.date.startsWith(month));
   return rows.length ? rows.reduce((a, r) => a + r.revenue, 0) : null;
 }
@@ -538,7 +569,7 @@ function hero({ crumbs, title, action, side, strip }) {
     strip ? h('div', { class: 'strip' }, strip) : null);
 }
 function monthSelect() {
-  const list = [...new Set([thisMonth(), ...state.daily.map(d => d.date.slice(0, 7))])].sort().reverse();
+  const list = [...new Set([thisMonth(), ...state.daily.map(d => d.date.slice(0, 7)), ...state.projects.flatMap(p => Object.keys(p.revenue ?? {}))])].sort().reverse();
   if (!list.includes(month)) month = thisMonth();
   return select(list.map(m => [m, monthTitle(m)]), month, { 'aria-label': 'Месяц', 'data-key': 'month', onchange: e => { month = e.target.value; render(); } });
 }
@@ -582,19 +613,100 @@ function projectCard(p, sum) {
 function project(id) {
   const p = state.projects.find(x => x.id === id);
   if (!p) return [h('div', { class: 'blank' }, 'Такого проекта нет. ', h('a', { href: '#/' }, 'На главную'))];
-  if (filterOwner !== id) { filters.project = newFilter(); filterOwner = id; }
+  if (filterOwner !== id) { filters.project = newFilter(); filterOwner = id; projectTab = 'tasks'; }
   const picker = monthSelect();
   const sum = revenue(id);
   const list = state.tasks.filter(t => t.project_id === id);
+  const tabs = p.sheet ? [['tasks', 'Задачи'], ['leads', 'Лиды'], ...(state.me.money ? [['money', 'Деньги']] : [])] : [['tasks', 'Задачи']];
+  if (!tabs.some(([k]) => k === projectTab)) projectTab = 'tasks';
+  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : sheetPart(p, projectTab);
   return [
     hero({
       crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: MODEL[p.model],
       action: state.me.owner ? h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить') : null,
       strip: [state.me.money ? meta('Месяц', picker) : null, state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
-        meta('Просрочено', lateLink(list.filter(isLate).length, 'project')), members(filters.project)],
+        meta('Просрочено', lateLink(list.filter(isLate).length, 'project')), projectTab === 'tasks' ? members(filters.project) : null],
     }),
-    ...tasksBlock(list, filters.project, id),
+    tabs.length > 1 ? h('div', { class: 'toolbar tabs' }, h('div', { class: 'switch', role: 'group', 'aria-label': 'Раздел проекта' }, tabs.map(([k, name]) =>
+      h('button', { type: 'button', 'aria-pressed': String(projectTab === k), 'data-key': `ptab-${k}`, onclick: () => { projectTab = k; render(); } }, name)))) : null,
+    ...body,
   ];
+}
+let projectTab = 'tasks';
+const crm = {};
+function loadCrm(p, fresh) {
+  const c = crm[p.id];
+  if (c?.loading || (!fresh && c && Date.now() - c.at < 120000)) return;
+  crm[p.id] = { ...c, loading: true };
+  api('GET', `/api/projects/${p.id}/crm${fresh ? '?fresh=1' : ''}`)
+    .then(data => { crm[p.id] = { data, at: Date.now() }; if (fresh) reload().catch(() => {}); })
+    .catch(e => { crm[p.id] = { ...crm[p.id], error: e.message, at: Date.now(), loading: false }; })
+    .finally(() => { if (pageProject() === p.id) render(); });
+}
+function sheetPart(p, tab) {
+  loadCrm(p);
+  const c = crm[p.id];
+  const ago = c?.data ? Math.round((Date.now() - new Date(c.data.at)) / 60000) : null;
+  const bar = h('div', { class: 'toolbar' },
+    c?.data ? h('span', { class: 'hint' }, ago < 1 ? 'Данные из таблицы, только что' : `Данные из таблицы, ${ago} мин назад`) : null,
+    h('span', { class: 'grow' }),
+    h('button', { class: 'btn', type: 'button', 'data-key': 'crm-fresh', disabled: c?.loading, onclick: () => loadCrm(p, true) }, c?.loading ? 'Обновляю…' : 'Обновить'),
+    h('a', { class: 'btn', href: p.sheet, target: '_blank', rel: 'noopener' }, 'Открыть таблицу'));
+  if (!c?.data) return [bar, h('div', { class: 'blank' }, c?.error ?? 'Загружаю из таблицы…')];
+  return [bar, c.error ? h('p', { class: 'err' }, c.error) : null, ...(tab === 'leads' ? leadsView(c.data) : moneyView(c.data))];
+}
+const CLOSED = /оплач|купил|отказ|не ца|закрыт/i;
+const LEAD_ORDER = ['назначен зум', 'думает', 'отложил', 'пропал'];
+function leadsView(c) {
+  const L = c.leads;
+  if (!L) return [h('div', { class: 'blank' }, 'В таблице нет листа с лидами. Нужен лист со словом «Лиды» в названии и столбцами «Имя» и «Статус».')];
+  const st = x => x.status || 'Без статуса';
+  const all = [...new Set(L.items.map(st))];
+  const rank = s => { const i = LEAD_ORDER.indexOf(s.toLowerCase()); return i < 0 ? 99 : i; };
+  const open = all.filter(s => !CLOSED.test(s)).sort((a, b) => rank(a) - rank(b)), closed = all.filter(s => CLOSED.test(s));
+  const of = s => L.items.filter(x => st(x) === s);
+  const inWork = L.items.filter(x => !CLOSED.test(st(x))).length;
+  return [
+    L.stats.length ? h('div', { class: 'tiles' }, L.stats.map(([k, v]) => meta(k, h('b', { class: 'big' }, v || '—')))) : null,
+    h('div', { class: 'toolbar' }, h('b', {}, plural(inWork, 'лид в работе', 'лида в работе', 'лидов в работе'))),
+    open.length ? h('div', { class: 'board' }, open.map(s => h('section', { class: 'col', 'aria-label': `${s}: ${of(s).length}` },
+      h('div', { class: 'col-head' }, h('h3', {}, s), h('span', { class: 'count' }, String(of(s).length))),
+      h('div', { class: 'cards-list' }, of(s).map(x => leadCard(x, c)))))) : h('div', { class: 'blank' }, 'Лидов в работе нет.'),
+    closed.length ? h('div', { class: 'closed' }, h('h3', {}, 'Закрытые'), closed.map(s => h('details', { class: 'pick' },
+      h('summary', {}, s, h('span', { class: 'count' }, String(of(s).length))), h('div', { class: 'cards-list' }, of(s).map(x => leadCard(x, c)))))) : null,
+  ];
+}
+function leadCard(x, c) {
+  return h('div', { class: 'kcard lead', 'data-key': `lead-${x.row}`, ...opens(() => leadDialog(x, c)) },
+    x.zoom || x.offer ? h('div', { class: 'kcard-top' }, h('span', { class: 'when' }, x.zoom ? [icon('date'), h('span', {}, x.zoom)] : null), x.offer ? h('span', { class: 'tag' }, x.offer) : null) : null,
+    h('div', { class: 't' }, x.name),
+    x.who ? h('div', { class: 'm' }, x.who) : null,
+    x.next ? h('div', { class: 'm' }, 'Дальше: ', x.next) : null);
+}
+const tgLink = v => { const m = v.match(/^@?([A-Za-z]\w{3,31})$/); return m ? h('a', { href: `https://t.me/${m[1]}`, target: '_blank', rel: 'noopener' }, `@${m[1]}`) : v; };
+function leadDialog(x, c) {
+  const dlg = $('#dialog');
+  dlg.classList.remove('roomy');
+  dlg.setAttribute('aria-labelledby', 'dialog-title');
+  dlg.replaceChildren(h('div', { class: 'assist' }, h('h2', { id: 'dialog-title' }, x.name),
+    h('dl', { class: 'fields' }, x.fields.filter(([, v]) => v !== x.name).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, k === x.fields.find(f => f[1] === x.tg)?.[0] ? tgLink(v) : v)])),
+    h('div', { class: 'row' }, h('a', { class: 'btn', href: `${c.url}#gid=${c.leads.gid}&range=A${x.row}`, target: '_blank', rel: 'noopener' }, 'Открыть в таблице'),
+      h('span', { class: 'grow' }), h('button', { class: 'btn main', type: 'button', onclick: () => dlg.close() }, 'Закрыть'))));
+  dlg.showModal();
+}
+function moneyView(c) {
+  const M = c.money;
+  if (!M) return [h('div', { class: 'blank' }, 'В таблице нет листа «Выручка».')];
+  const sum = v => (v === null || v === undefined ? '—' : money(v));
+  const block = (title, x) => [
+    h('h3', { class: 'sub' }, title),
+    x ? [h('div', { class: 'tiles' }, meta('Выручка после налога', h('b', { class: 'big' }, sum(x.net))), meta('Продажи', h('b', {}, sum(x.gross))), meta('Налог', h('b', {}, sum(x.tax)))),
+      x.people.length ? h('div', { class: 'shares-wrap' }, h('table', { class: 'shares' },
+        h('thead', {}, h('tr', {}, h('th', {}, 'Кому'), h('th', {}, 'Доля'), h('th', {}, 'Получено'), h('th', {}, 'Осталось'))),
+        h('tbody', {}, x.people.map(p => h('tr', {}, h('td', {}, p.name), h('td', {}, sum(p.accrued)), h('td', {}, sum(p.received)), h('td', { class: p.left > 0 ? 'bad' : null }, sum(p.left))))))) : null]
+      : h('div', { class: 'blank' }, 'За этот месяц в таблице нет цифр.'),
+  ];
+  return [...block(monthTitle(month), M.months[month]), ...(M.all ? block('За всё время', M.all) : [])];
 }
 function members(filter) {
   if (!state.people.length) return null;
@@ -957,6 +1069,8 @@ function projectDialog(p) {
   openDialog(p ? 'Проект' : 'Новый проект', [
     input('Название', 'name', p?.name, { required: true, maxlength: 60 }),
     h('label', {}, 'Модель', select(Object.entries(MODEL), p?.model ?? 'mentorship', { name: 'model' })),
+    SHEETS ? input('Таблица проекта', 'sheet', p?.sheet, { type: 'url', placeholder: 'Ссылка на Google-таблицу' }) : null,
+    SHEETS ? h('p', { class: 'hint' }, 'Из неё подтянутся лиды и выручка. Сайт таблицу только читает. Можно оставить пустым.') : null,
   ], {
     save: f => p ? api('PATCH', `/api/projects/${p.id}`, f) : api('POST', '/api/projects', f),
     remove: p && { warning: SHEETS ? 'Проект удалится насовсем. Задачи останутся, но без проекта, строки выручки останутся в таблице.' : 'Проект и его цифры удалятся насовсем. Задачи останутся, но без проекта.',
@@ -1280,7 +1394,7 @@ function render() {
   const page = p ? 'project' : here().startsWith('#/tasks') ? 'tasks' : here().startsWith('#/settings') ? 'settings' : 'home';
   month ??= thisMonth();
   const scroll = document.querySelector('.cal-scroll')?.scrollLeft, boardLeft = document.querySelector('.board')?.scrollLeft;
-  $('#view').replaceChildren(...{ project: () => project(p), tasks, settings, home }[page]());
+  $('#view').replaceChildren(...{ project: () => project(p), tasks, settings, home }[page]().flat(Infinity).filter(x => x !== null && x !== undefined && x !== false));
   const late = state.tasks.filter(isLate).length;
   $('#nav').replaceChildren(...[['home', '#/', 'Главная'], ['tasks', '#/tasks', 'Задачи'], ['settings', '#/settings', 'Настройки']].map(([k, href, name]) =>
     h('a', { href, 'data-key': `nav-${k}`, 'aria-current': page === k ? 'page' : null }, h('span', { class: 'nav-ico' }, icon(k),
