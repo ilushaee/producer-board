@@ -346,6 +346,16 @@ ol.steps { margin: 8px 0 12px; padding-left: 22px; color: var(--ink-2); line-hei
 ol.steps a { color: var(--ink); }
 .tg { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
 .tg .row .field { flex: 1; min-width: 0; }
+/* повтор */
+.kcard .rep { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.repeat { display: grid; gap: 8px; }
+.repeat .days { display: flex; flex-wrap: wrap; gap: 6px; }
+.repeat .days[hidden], .repeat .inline[hidden] { display: none; }
+.repeat .day { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+.repeat .day:has(input:checked) { background: var(--glass-2); border-color: var(--accent-2); }
+.repeat .inline { display: flex; align-items: center; gap: 10px; }
+.repeat .inline .field { width: 90px; }
+.repeat .day input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -851,11 +861,41 @@ function card(t, showProject) {
   return h('div', { class: `kcard${t.status === 'done' ? ' done' : ''}${t.saving ? ' saving' : ''}`, 'data-id': t.id, 'data-key': `t${t.id}`, ...(t.saving ? {} : { ...opens(() => taskDialog(t)), ...draggable(t) }) },
     h('div', { class: 'kcard-top' },
       h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null)),
+      t.repeat ? h('span', { class: 'rep', title: 'Регулярная задача' }, `🔁 ${repeatText(t.repeat)}`) : null,
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
     h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
     t.controller ? h('div', { class: 'm' }, 'Проверяет: ', t.controller) : null,
     t.note ? h('div', { class: 'm note' }, icon('link'), linksIn(t.note).length ? plural(linksIn(t.note).length, 'ссылка', 'ссылки', 'ссылок') : 'есть описание') : null);
+}
+const DOW = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+function repeatText(c) {
+  if (c === 'daily') return 'каждый день';
+  if (c === 'weekdays') return 'по будням';
+  if (/^monthly:/.test(c)) return `каждый месяц ${c.slice(8)}-го`;
+  if (/^weekly:/.test(c)) return `каждый ${c.slice(7).split(',').map(n => DOW[n - 1]).join(', ')}`;
+  return '';
+}
+function repeatField(t) {
+  const c = t?.repeat ?? '', kind = c.split(':')[0];
+  const hidden = h('input', { type: 'hidden', name: 'repeat', value: c });
+  const days = DOW.map((d, i) => h('label', { class: 'day' }, h('input', { type: 'checkbox', value: String(i + 1), checked: kind === 'weekly' && c.slice(7).split(',').includes(String(i + 1)), onchange: sync }), h('span', {}, d)));
+  const daysBox = h('div', { class: 'days', hidden: kind !== 'weekly' }, days);
+  const num = h('input', { class: 'field', type: 'number', min: 1, max: 31, value: kind === 'monthly' ? c.slice(8) : '1', 'aria-label': 'Число месяца', oninput: sync });
+  const numBox = h('label', { class: 'inline', hidden: kind !== 'monthly' }, 'Число месяца', num);
+  const pick = select([['', 'Не повторяется'], ['daily', 'Каждый день'], ['weekdays', 'По будням'], ['weekly', 'По дням недели'], ['monthly', 'Раз в месяц']], kind, { onchange: () => {
+    if (pick.value === 'weekly' && !days.some(x => x.firstChild.checked)) days[0].firstChild.checked = true;
+    sync();
+  } });
+  function sync() {
+    const k = pick.value;
+    daysBox.hidden = k !== 'weekly'; numBox.hidden = k !== 'monthly';
+    const picked = days.map(x => x.firstChild).filter(x => x.checked).map(x => x.value);
+    const n = Math.min(31, Math.max(1, Number(num.value) || 1));
+    hidden.value = !k ? '' : k === 'weekly' ? (picked.length ? `weekly:${picked.join(',')}` : '') : k === 'monthly' ? `monthly:${n}` : k;
+  }
+  return h('div', { class: 'repeat' }, h('label', {}, 'Повтор', pick), daysBox, numBox, hidden,
+    t?.repeat ? h('p', { class: 'hint' }, `Сделано ${plural(t.count ?? 0, 'раз', 'раза', 'раз')}${t.missed ? `, пропущено ${t.missed}` : ''}. «Готово» переносит задачу на следующий раз.`) : h('p', { class: 'hint' }, 'Регулярная задача после «Готово» сама переносится на следующий раз.'));
 }
 const linksIn = text => [...new Set((String(text ?? '').match(/https?:\/\/[^\s<>"«»]+/gi) || []).map(u => u.replace(/[.,;:!?)\]]+$/, '')))];
 const shortUrl = u => { try { const x = new URL(u); const rest = (x.pathname + x.search).replace(/\/$/, ''); return x.host.replace(/^www\./, '') + (rest.length > 28 ? `${rest.slice(0, 27)}…` : rest); } catch { return u; } };
@@ -1067,7 +1107,7 @@ function functionField(current) {
     h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
 }
 let tempId = 0;
-const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null } : {}) });
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null } : {}) });
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
@@ -1080,6 +1120,7 @@ function taskDialog(t, preset = {}) {
       h('label', {}, 'Проверяет (если нужно)', select(peopleOptions(), v.controller ?? '', { name: 'controller' }))),
     h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date' }), input('Конец', 'due', v.due, { type: 'date' })),
     h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
+    SHEETS ? repeatField(v) : null,
   ], t ? {
     now: SHEETS && (f => {
       const x = state.tasks.find(y => y.id === t.id);
