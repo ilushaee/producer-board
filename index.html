@@ -375,6 +375,26 @@ ol.steps a { color: var(--ink); }
 @media (max-width: 700px) { .plan-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } .plan-cell b { font-size: 17px; } }
 .share-note { margin: 10px 2px; }
 .note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* этапы */
+.stage-list { display: grid; gap: 8px; margin: 12px 0 18px; }
+.stage-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 120px; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); cursor: pointer; }
+.stage-row:hover { background: var(--glass-2); }
+.stage-row .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.stage-main { display: grid; gap: 2px; min-width: 0; }
+.stage-main b { overflow-wrap: anywhere; }
+.stage-state { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--glass-2); white-space: nowrap; }
+.stage-state.now { background: rgba(122, 108, 255, .25); }
+.stage-state.done { color: #7be0a3; }
+.stage-state.late { color: var(--bad); }
+.stage-progress { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.stage-progress .mini { height: 6px; border-radius: 999px; background: var(--glass-2); overflow: hidden; }
+.stage-progress .mini div { height: 100%; background: var(--c); }
+.stage-now { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
+.kcard .stage-tag { font-size: 12px; }
+.stage-tasks { display: grid; gap: 6px; }
+.stage-task { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.stage-task.done span:first-child { text-decoration: line-through; opacity: .6; }
+@media (max-width: 700px) { .stage-row { grid-template-columns: 12px minmax(0, 1fr) auto; } .stage-row > :last-child { grid-column: 2 / -1; } }
 </style>
 </head>
 <body>
@@ -645,6 +665,7 @@ function home() {
     state.projects.length
       ? h('div', { class: 'cards' }, state.projects.map((p, i) => projectCard(p, sums[i])))
       : h('div', { class: 'blank' }, 'Проектов пока нет. Добавь первый.'),
+    (state.stages ?? []).length ? [h('div', { class: 'toolbar' }, h('h2', { class: 'sub' }, 'Этапы проектов')), calendar(state.stages, true, stageCal(null))] : null,
   ];
 }
 function lateLink(n, owner) {
@@ -662,6 +683,7 @@ function projectCard(p, sum) {
     h('div', { class: 'card-top' }, h('h2', {}, p.name), p.niche ? h('span', { class: 'pill' }, p.niche) : null),
     h('div', { class: 'card-body' },
       state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
+      stageNow(p.id) ? h('p', { class: 'stage-now' }, '🏁 ', stageNow(p.id)) : null,
       h('p', { class: 'foot' }, list.length ? plural(list.length, 'открытая задача', 'открытые задачи', 'открытых задач') : 'Открытых задач нет',
         late ? [', ', h('span', { class: 'bad' }, `просрочено ${late}`)] : null)));
 }
@@ -673,9 +695,9 @@ function project(id) {
   const picker = monthSelect();
   const sum = revenue(id);
   const list = state.tasks.filter(t => t.project_id === id);
-  const tabs = [['tasks', 'Задачи'], ...(p.sheet ? [['leads', 'Лиды']] : []), ...(p.sheet && state.me.money ? [['money', 'Деньги']] : []), ...(SHEETS && state.me.money ? [['decomp', 'Декомпозиция']] : [])];
+  const tabs = [['tasks', 'Задачи'], ...(SHEETS ? [['stages', 'Этапы']] : []), ...(p.sheet ? [['leads', 'Лиды']] : []), ...(p.sheet && state.me.money ? [['money', 'Деньги']] : []), ...(SHEETS && state.me.money ? [['decomp', 'Декомпозиция']] : [])];
   if (!tabs.some(([k]) => k === projectTab)) projectTab = 'tasks';
-  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
+  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'stages' ? stagesBlock(p) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
   return [
     hero({
       crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: p.niche ?? null,
@@ -764,6 +786,95 @@ function moneyView(c) {
       : h('div', { class: 'blank' }, 'За этот месяц в таблице нет цифр.'),
   ];
   return [...block(monthTitle(month), M.months[month]), ...(M.all ? block('За всё время', M.all) : [])];
+}
+const stageById = id => (state?.stages ?? []).find(x => x.id === id);
+const projectStages = pid => (state?.stages ?? []).filter(x => x.project_id === pid);
+const stageColor = st => `p${projectStages(st.project_id).indexOf(st) % 6 + 1}`;
+const stageLate = st => !st.done && st.due && st.due < today();
+const daysLeft = iso => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${today()}T00:00:00Z`)) / 86400000);
+function stageState(st) {
+  if (st.done) return ['done', 'Готово'];
+  if (stageLate(st)) return ['late', 'Просрочен'];
+  if (st.start > today()) { const n = daysLeft(st.start); return ['next', n === 1 ? 'Завтра' : `Через ${plural(n, 'день', 'дня', 'дней')}`]; }
+  const n = daysLeft(st.due);
+  return ['now', n === 0 ? 'Идёт · последний день' : `Идёт · ещё ${plural(n, 'день', 'дня', 'дней')}`];
+}
+function stageNow(pid) {
+  const list = projectStages(pid).filter(x => !x.done);
+  const now = list.filter(x => x.start <= today() && x.due >= today());
+  if (now.length) return now.map(x => `${x.name} · до ${dayText(x.due)}`).join('; ');
+  const next = list.find(x => x.start > today());
+  return next ? `Дальше: ${next.name} · с ${dayText(next.start)}` : null;
+}
+const stageCal = pid => ({
+  kind: 'stage', undated: false, addLabel: 'этап',
+  name: (st, showProject) => (showProject ? `${projectName(st.project_id)}: ${st.name}` : st.name),
+  info: (st, name) => [name, datesText(st), stageState(st)[1]].join(', '),
+  cls: (st, showProject) => `${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}`,
+  open: st => stageDialog(st),
+  add: pid && state.me.owner ? d => stageDialog(null, { project_id: pid, start: d, due: d }) : null,
+});
+function stagesBlock(p) {
+  const list = projectStages(p.id);
+  const row = st => {
+    const tasks = state.tasks.filter(t => t.stage_id === st.id), done = tasks.filter(t => t.status === 'done').length;
+    const [cls, text] = stageState(st);
+    return h('div', { class: `stage-row ${stageColor(st)}`, 'data-key': `stage-${st.id}`, ...opens(() => stageDialog(st)) },
+      h('span', { class: 'dot', 'aria-hidden': 'true' }),
+      h('div', { class: 'stage-main' }, h('b', {}, st.name), h('span', { class: 'hint' }, datesText(st))),
+      h('span', { class: `stage-state ${cls}` }, text),
+      tasks.length ? h('div', { class: 'stage-progress', title: `Сделано ${done} из ${tasks.length}` },
+        h('span', {}, `${done}/${tasks.length} задач`), h('div', { class: 'mini' }, h('div', { style: `width:${Math.round(done / tasks.length * 100)}%` }))) : h('span', { class: 'hint' }, 'задач нет'));
+  };
+  return [
+    h('div', { class: 'toolbar' }, h('b', {}, list.length ? plural(list.length, 'этап', 'этапа', 'этапов') : 'Этапов пока нет'),
+      state.me.owner ? h('button', { class: 'btn main', type: 'button', 'data-key': 'add-stage', onclick: () => stageDialog(null, { project_id: p.id }) }, icon('plus'), 'Добавить этап') : null,
+      state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'stage-assistant', onclick: () => assistantDialog(p.id) }, icon('spark'), 'Надиктовать этапы') : null),
+    list.length ? h('div', { class: 'stage-list' }, list.map(row))
+      : h('div', { class: 'blank' }, 'Этап — крупный кусок проекта с датами: «Создание воронки», «Предобучение», «Поток». Добавь вручную или надиктуй помощнику.'),
+    list.length ? calendar(list, false, stageCal(p.id)) : null,
+  ];
+}
+function stageDialog(st, preset = {}) {
+  const v = st ?? preset, pid = v.project_id;
+  const tasks = st ? state.tasks.filter(t => t.stage_id === st.id) : [];
+  const owner = state.me.owner;
+  openDialog(st ? st.name : 'Новый этап', [
+    h('p', { class: 'hint' }, `Проект: ${projectName(pid)}`),
+    input('Название', 'name', v.name, { required: true, maxlength: 80, placeholder: 'Например: Создание воронки', disabled: !owner }),
+    h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date', required: true, disabled: !owner }), input('Конец', 'due', v.due, { type: 'date', required: true, disabled: !owner })),
+    st ? h('label', { class: 'tick' }, h('input', { type: 'checkbox', name: 'done', checked: !!st.done, disabled: !owner }), h('span', {}, 'Этап завершён')) : null,
+    st ? h('div', { class: 'stage-tasks' }, h('b', {}, tasks.length ? `Задачи этапа: ${tasks.filter(t => t.status === 'done').length} из ${tasks.length} сделано` : 'Задач в этапе пока нет'),
+      tasks.map(t => h('button', { class: `stage-task${t.status === 'done' ? ' done' : ''}`, type: 'button', onclick: () => taskDialog(t) }, h('span', {}, t.title), h('span', { class: 'hint' }, STATUS[t.status]))),
+      h('button', { class: 'link', type: 'button', onclick: () => taskDialog(null, { project_id: pid, stage_id: st.id }) }, '+ Задача в этот этап')) : null,
+  ], owner ? {
+    label: st ? 'Сохранить' : 'Добавить',
+    save: f => {
+      const body = { name: f.name, start: f.start, due: f.due, ...(st ? { done: f.done === 'on' } : { project_id: pid }) };
+      if (body.start > body.due) throw new Error('Начало позже конца');
+      return st ? api('PATCH', `/api/stages/${st.id}`, body) : api('POST', '/api/stages', body);
+    },
+    after: () => toast(st ? 'Этап сохранён' : 'Этап добавлен'),
+    remove: st && { warning: tasks.length ? `Этап удалится. Его ${plural(tasks.length, 'задача', 'задачи', 'задач')} останутся в проекте, просто без этапа.` : 'Этап удалится.', fn: () => api('DELETE', `/api/stages/${st.id}`) },
+  } : { label: 'Закрыть', save: async () => {} });
+}
+function moveStage(id, grabbed, day) {
+  const st = stageById(id);
+  dragged = null;
+  clearTarget();
+  if (!st) return;
+  const dates = moveTo(st, day, grabbed);
+  if (dates.start === st.start && dates.due === st.due) return;
+  background(() => Object.assign(st, dates), () => api('PATCH', `/api/stages/${id}`, dates));
+  toast(`Этап «${st.name}»: ${datesText(dates)}`);
+}
+function stageField(current) {
+  const groups = state.projects.map(p => [p, projectStages(p.id)]).filter(([, l]) => l.length);
+  return h('label', {}, 'Этап', h('select', { name: 'stage_id', onchange: e => {
+    const st = stageById(Number(e.target.value));
+    if (st) e.target.form.elements.project_id.value = String(st.project_id);
+  } }, h('option', { value: '', selected: !current }, 'Без этапа'),
+    groups.map(([p, l]) => h('optgroup', { label: p.name }, l.map(st => h('option', { value: String(st.id), selected: st.id === current }, `${st.name} · ${datesText(st)}`))))));
 }
 let planMonth = null;
 const shiftMonth = (m, n) => { const d = new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1)); return d.toISOString().slice(0, 7); };
@@ -913,10 +1024,10 @@ function filterSummary(filter, active) {
     resetButton(filter));
 }
 let dragged = null; // { id, grabbed }: что тащат и за какой день полосы взяли
-const draggable = (t, grabbed = () => 0) => ({
+const draggable = (t, grabbed = () => 0, kind = 'task') => ({
   draggable: 'true',
   ondragstart: e => {
-    dragged = { id: t.id, grabbed: grabbed(e) };
+    dragged = { id: t.id, grabbed: grabbed(e), kind };
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', t.title);
     e.currentTarget.classList.add('moving');
@@ -972,6 +1083,7 @@ function card(t, showProject) {
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
     t.repeat ? h('div', { class: 'm rep' }, `🔁 ${repeatText(t.repeat)}`) : null,
+    t.stage_id && stageById(t.stage_id) ? h('div', { class: 'm stage-tag' }, `🏁 ${stageById(t.stage_id).name}`) : null,
     h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
     t.controller ? h('div', { class: 'm' }, 'Проверяет: ', t.controller) : null,
     t.repeat && !t.saving && SHEETS ? h('button', { class: 'btn small done-once', type: 'button', 'data-key': `once-${t.id}`, onclick: e => { e.stopPropagation(); doneOnce(t); } }, '✓ Сделано') : null,
@@ -1057,21 +1169,29 @@ function moveCard(id, status, before) {
     if (changed) toast(`Перенёс в «${STATUS[status]}»`);
   });
 }
-function calendar(list, showProject) {
+const TASK_CAL = {
+  kind: 'task', undated: true, addLabel: 'задачу',
+  name: (t, showProject) => (showProject && t.project_id ? `${projectName(t.project_id)}: ${t.title}` : t.title),
+  info: (t, name) => [name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status], isLate(t) && 'просрочено'].filter(Boolean).join(', '),
+  cls: t => `${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''}`,
+  open: t => taskDialog(t),
+  add: d => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+};
+function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
-  const undated = list.filter(t => !range(t));
+  const undated = cfg.undated ? list.filter(t => !range(t)) : [];
   return h('div', { class: 'calendar' },
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, monthTitle(calMonth)),
       h('div', { class: 'row' }, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
         go('cal-now', 'Текущий месяц', thisMonth(), 'Сегодня'), go('cal-next', 'Следующий месяц', addMonths(calMonth, 1), '→'))),
     h('div', { class: 'cal-scroll' }, h('div', { class: 'cal-grid' },
       h('div', { class: 'cal-days', 'aria-hidden': 'true' }, ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => h('div', {}, d))),
-      monthWeeks(calMonth).map(days => week(days, list, showProject)))),
+      monthWeeks(calMonth).map(days => week(days, list, showProject, cfg)))),
     undated.length ? h('div', { class: 'undated' }, h('h3', {}, 'Без дат'), h('p', { class: 'hint' }, 'Перетащи на нужный день.'),
-      h('div', { class: 'chips' }, undated.map(t => bar(t, showProject, 'loose')))) : null);
+      h('div', { class: 'chips' }, undated.map(t => bar(t, showProject, 'loose', undefined, cfg)))) : null);
 }
-function week(days, list, showProject) {
+function week(days, list, showProject, cfg) {
   const segments = layoutWeek(days, list);
   const lanes = Math.max(0, ...segments.map(s => s.lane + 1));
   const dayAt = e => {
@@ -1080,11 +1200,11 @@ function week(days, list, showProject) {
   };
   const cells = days.map((d, i) => h('div', {
     class: `day${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, 'data-day': d, style: `grid-column:${i + 1};grid-row:1/-1`,
-    onclick: () => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+    onclick: cfg.add ? () => cfg.add(d) : null,
   }));
-  const numbers = days.map((d, i) => h('button', {
-    class: `daynum${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, type: 'button', style: `grid-column:${i + 1};grid-row:1`, 'data-key': `day-${d}`,
-    'aria-label': `Добавить задачу на ${dayText(d)}`, onclick: () => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+  const numbers = days.map((d, i) => h(cfg.add ? 'button' : 'span', {
+    class: `daynum${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, type: cfg.add ? 'button' : null, style: `grid-column:${i + 1};grid-row:1`, 'data-key': `day-${d}`,
+    'aria-label': cfg.add ? `Добавить ${cfg.addLabel} на ${dayText(d)}` : null, onclick: cfg.add ? () => cfg.add(d) : null,
   }, String(Number(d.slice(8)))));
   const el = h('div', { class: 'week', style: `grid-template-rows:34px ${'30px '.repeat(lanes)}minmax(14px,1fr)`,
     ondragenter: accept,
@@ -1102,21 +1222,22 @@ function week(days, list, showProject) {
       const r = b.getBoundingClientRect();
       const inside = Math.min(s.span - 1, Math.max(0, Math.floor((e.clientX - r.left) / r.width * s.span)));
       return diffDays(range(s.task).start, days[s.col + inside]);
-    });
+    }, cfg);
     b.style.gridColumn = `${s.col + 1} / span ${s.span}`;
     b.style.gridRow = String(s.lane + 2);
     return b;
   }));
   return el;
 }
-function bar(t, showProject, cls, grabbed) {
-  const name = showProject && t.project_id ? `${projectName(t.project_id)}: ${t.title}` : t.title;
-  const full = [name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status], isLate(t) && 'просрочено'].filter(Boolean).join(', ');
-  return h('div', { class: `bar ${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''} ${cls}`, title: full, 'aria-label': full, 'data-key': `b${t.id}`,
-    ...(t.saving ? {} : { ...opens(() => taskDialog(t)), ...draggable(t, grabbed) }) }, h('span', {}, name));
+function bar(t, showProject, cls, grabbed, cfg = TASK_CAL) {
+  const name = cfg.name(t, showProject), full = cfg.info(t, name);
+  const move = cfg.kind === 'task' || state.me.owner;
+  return h('div', { class: `bar ${cfg.cls(t, showProject)} ${cls}`, title: full, 'aria-label': full, 'data-key': `${cfg.kind[0]}${t.id}`,
+    ...(t.saving ? {} : { ...opens(() => cfg.open(t)), ...(move ? draggable(t, grabbed, cfg.kind) : {}) }) }, h('span', {}, name));
 }
 function clearTarget() { document.querySelector('.day.target')?.classList.remove('target'); }
-function moveDates({ id, grabbed }, day) {
+function moveDates({ id, grabbed, kind }, day) {
+  if (kind === 'stage') { moveStage(id, grabbed, day); return; }
   const t = state.tasks.find(x => x.id === id);
   dragged = null;
   clearTarget();
@@ -1220,13 +1341,17 @@ function functionField(current) {
     h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
 }
 let tempId = 0;
-const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null } : {}) });
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, stage_id: Number(f.stage_id) || null } : {}) });
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
     input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
     SHEETS ? noteField(v.note) : null,
-    h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id' })),
+    h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
+      const stage = e.target.form.elements.stage_id, st = stage && stageById(Number(stage.value));
+      if (st && st.project_id !== Number(e.target.value)) stage.value = '';
+    } })),
+    SHEETS && (state.stages ?? []).length ? stageField(v.stage_id ?? '') : null,
     functionField(v.function_id ?? ''),
     h('div', { class: 'two' },
       h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' })),
@@ -1589,7 +1714,7 @@ function assistantDialog(projectId) {
     };
     show('Что предлагаю', note ? h('p', {}, note) : null,
       dropped ? h('p', { class: 'hint' }, 'Часть данных отброшена: там были неизвестные люди, проекты, задачи или неверные даты.') : null,
-      group('project', 'Новый проект'), group('create', 'Новые задачи'), group('update', 'Поправить'), group('delete', 'Удалить'), err,
+      group('project', 'Новый проект'), group('stage', 'Новые этапы'), group('create', 'Новые задачи'), group('update', 'Поправить'), group('delete', 'Удалить'), err,
       h('div', { class: 'row sticky' }, back, h('span', { class: 'grow' }), h('button', { class: 'btn', type: 'button', onclick: close }, 'Ничего не менять'), apply));
   }
 
@@ -1597,16 +1722,17 @@ function assistantDialog(projectId) {
   start();
 }
 let newProject = ''; // название проекта, который помощник предлагает завести
-const FIELD = { name: 'Название', model: 'Модель', title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Ответственный', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
+const FIELD = { name: 'Название', model: 'Модель', stage_id: 'Этап', title: 'Название', project_id: 'Проект', function_id: 'Функция', person: 'Ответственный', controller: 'Проверяет', start: 'Начало', due: 'Конец' };
 function fieldText(k, v) {
   if (v === null || v === undefined) return 'пусто';
   if (k === 'project_id') return v === 'new' ? `новый «${newProject}»` : projectName(v);
   if (k === 'model') return MODEL[v] ?? v;
+  if (k === 'stage_id') return String(v).startsWith('new:') ? `новый «${String(v).slice(4)}»` : stageById(v)?.name ?? v;
   if (k === 'function_id') return state.functions.find(f => f.id === v)?.name ?? v;
   return k === 'start' || k === 'due' ? dayText(v) : v;
 }
 function proposal(c, box) {
-  const rows = Object.entries(c.after ?? {}).filter(([k]) => (c.kind !== 'create' || k !== 'title') && (c.kind !== 'project' || k !== 'name'));
+  const rows = Object.entries(c.after ?? {}).filter(([k]) => (c.kind !== 'create' || k !== 'title') && ((c.kind !== 'project' && c.kind !== 'stage') || k !== 'name'));
   return h('label', { class: 'proposal' }, box, h('div', {}, h('b', {}, c.title),
     rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, FIELD[k]), h('dd', {}, c.kind === 'update' ? [h('s', {}, fieldText(k, c.before[k])), ' → '] : null, fieldText(k, v))])) : null,
     c.reason ? h('p', { class: 'hint' }, c.reason) : null));
@@ -1691,6 +1817,12 @@ function drawShare(d) {
       meta('Открыто', h('b', { class: 'big' }, String(open.length))), meta('Просрочено', h('b', { class: late ? 'big bad' : 'big' }, String(late))),
       meta('Обновлено', h('b', {}, new Date(d.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })))] }),
     h('p', { class: 'hint share-note' }, 'Только просмотр. Страница обновляется сама раз в минуту.'),
+    (d.stages ?? []).length ? h('div', { class: 'stage-list' }, h('h3', { class: 'sub' }, 'Этапы'), d.stages.map((st, i) => {
+      const [cls, text] = stageState(st);
+      const tasks = d.tasks.filter(t => t.stage_id === st.id), done = tasks.filter(t => t.status === 'done').length;
+      return h('div', { class: `stage-row p${i % 6 + 1}` }, h('span', { class: 'dot' }), h('div', { class: 'stage-main' }, h('b', {}, st.name), h('span', { class: 'hint' }, datesText(st))),
+        h('span', { class: `stage-state ${cls}` }, text), tasks.length ? h('span', { class: 'hint' }, `${done}/${tasks.length}`) : h('span', {}));
+    })) : null,
     h('div', { class: 'board' },
       d.tasks.some(t => t.repeat) ? col('🔁 Регулярные', d.tasks.filter(t => t.repeat), '') : null,
       col('Сделать', by('todo'), 'Пусто.'), col('В работе', by('doing'), 'Пусто.'), col('На проверке', by('review'), 'Пусто.'), col('Готово', recent, 'Пока ничего.')));
