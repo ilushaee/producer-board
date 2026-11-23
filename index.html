@@ -341,6 +341,11 @@ dialog label textarea.field { min-height: 92px; }
 .links a:hover { text-decoration: underline; }
 .kcard .m.note { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
 .key-err { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 156, 156, .12); font-size: 15px; }
+/* Telegram */
+ol.steps { margin: 8px 0 12px; padding-left: 22px; color: var(--ink-2); line-height: 1.5; }
+ol.steps a { color: var(--ink); }
+.tg { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+.tg .row .field { flex: 1; min-width: 0; }
 </style>
 </head>
 <body>
@@ -994,6 +999,7 @@ function settings() {
           h('summary', {}, d, h('span', { class: 'count' }, String(list.length))), h('div', { class: 'lines fns' }, list.map(fn)));
       })),
     assistantSettings(),
+    telegramSettings(),
     test ? h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Тестовые данные'), h('p', {}, 'Примеры задач и выручки, чтобы было на что смотреть.')),
       h('button', { class: 'btn danger', type: 'button', 'data-key': 'clear', onclick: clearDialog }, 'Удалить тестовые данные'))) : null,
   ].filter(Boolean);
@@ -1112,6 +1118,7 @@ function personDialog(p) {
   openDialog(p ? p.name : 'Новый человек', [
     input('Имя', 'name', p?.name, { required: true, maxlength: 40 }),
     pick('Что делает', 'does', 'person'), pick('Что проверяет', 'checks', 'controller'),
+    p && SHEETS && state.telegram?.ready && state.me.owner ? telegramPerson(p) : null,
   ], {
     label: p ? 'Сохранить' : 'Добавить',
     save: (f, fd) => {
@@ -1277,6 +1284,50 @@ function assistantSettings() {
     h('p', {}, ready ? 'Ключ Claude сохранён, помощник работает.' : ['Нужен ключ Claude API: ', h('a', { href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'консоль Claude'), ' → API Keys. Оплачивается отдельно от подписки.'])),
     ready ? h('button', { class: 'btn danger', type: 'button', 'data-key': 'del-key', onclick: () => attempt(async () => { await api('DELETE', '/api/assistant/key'); await reload(); toast('Ключ удалён'); }) }, 'Удалить ключ') : null),
     ready ? null : [form, err, h('p', { class: 'hint' }, SHEETS ? 'Ключ хранится в настройках скрипта Google. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.' : 'Ключ хранится только на этом компьютере. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.')]);
+}
+function telegramSettings() {
+  if (!SHEETS || !state.telegram || !state.me.owner) return null;
+  const t = state.telegram;
+  const err = h('p', { class: 'err key-err', role: 'alert', hidden: true });
+  const btn = h('button', { class: 'btn main' }, 'Сохранить');
+  const form = h('form', { class: 'key-form', onsubmit: async e => {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = 'Проверяю…'; err.hidden = true;
+    try { await api('POST', '/api/telegram/key', { token: new FormData(form).get('token') }); await reload(); toast('Бот подключён'); }
+    catch (x) { err.textContent = `Не сохранилось. ${x.message}`; err.hidden = false; btn.disabled = false; btn.textContent = 'Сохранить'; toast(err.textContent); }
+  } }, h('input', { class: 'field', type: 'password', name: 'token', placeholder: '1234567890:AAE…', 'aria-label': 'Ключ бота', autocomplete: 'off', required: true }), btn);
+  const minutes = t.tick ? Math.round((Date.now() - new Date(t.tick)) / 60000) : null;
+  const running = minutes !== null && minutes < 5;
+  const steps = (...items) => h('ol', { class: 'steps' }, items.map(x => h('li', {}, x)));
+  return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Telegram-бот'),
+    h('p', {}, !t.ready ? 'Присылает каждому его задачи в 9:00 и 20:00 по Москве, принимает новые задачи текстом.'
+      : running ? `Бот @${t.bot} работает.` : `Бот @${t.bot} подключён, но расписание ещё не включено.`)),
+    t.ready ? h('button', { class: 'btn danger', type: 'button', onclick: () => attempt(async () => { await api('DELETE', '/api/telegram/key'); await reload(); toast('Бот отключён'); }) }, 'Отключить бота') : null),
+    !t.ready ? [steps(['В Telegram открой ', h('a', { href: 'https://t.me/BotFather', target: '_blank', rel: 'noopener' }, '@BotFather'), ', отправь /newbot, придумай имя и адрес бота (адрес кончается на bot).'],
+      'Он пришлёт ключ вида 1234567890:AAE… Вставь его сюда.'), form, err] : null,
+    t.ready && !running ? [h('p', {}, 'Осталось один раз включить расписание, чтобы бот проверял сообщения каждую минуту:'),
+      steps('Открой проект сайта в Apps Script (script.google.com).', 'Слева нажми «Триггеры» (значок будильника), внизу «Добавить триггер».',
+        'Функция: api. Источник события: «Триггер по времени». Тип: «Таймер с интервалом в минутах», «Каждую минуту».', 'Сохрани и разреши доступ, если Google спросит.'),
+      minutes !== null ? h('p', { class: 'hint' }, `Последний раз бот проверял сообщения ${minutes} мин назад.`) : null] : null,
+    t.ready ? h('p', { class: 'hint' }, t.people.length ? `Подключены: ${t.people.join(', ')}.` : 'Пока никто не подключён. Открой человека в «Команде» и нажми «Ссылка для Telegram».') : null);
+}
+function telegramPerson(p) {
+  const linked = state.telegram.people.includes(p.name);
+  const box = h('div', { class: 'tg' });
+  const sales = h('input', { type: 'checkbox' });
+  const out = h('div', {});
+  const draw = () => box.replaceChildren(...[h('b', {}, 'Telegram'), linked
+    ? h('div', { class: 'row' }, h('span', {}, 'Подключён к боту'), h('span', { class: 'grow' }),
+      h('button', { class: 'btn', type: 'button', onclick: () => attempt(async () => { await api('DELETE', `/api/people/${p.id}/telegram`); $('#dialog').close(); await reload(); toast(`${p.name} отключён от бота`); }) }, 'Отключить'))
+    : [h('label', { class: 'tick' }, sales, h('span', {}, 'Показывать продажи и выручку')),
+      h('button', { class: 'btn', type: 'button', onclick: () => attempt(async () => {
+        const { url } = await api('POST', `/api/people/${p.id}/telegram`, { sales: sales.checked });
+        out.replaceChildren(h('p', { class: 'hint' }, 'Отправь эту ссылку человеку. Она одноразовая и работает 3 дня.'),
+          h('div', { class: 'row' }, h('input', { class: 'field', readonly: true, value: url, onclick: e => e.target.select() }),
+            h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка скопирована'), () => toast('Выдели ссылку и скопируй')) }, 'Скопировать')));
+      }) }, 'Ссылка для Telegram'), out]].flat());
+  draw();
+  return box;
 }
 
 let draft = ''; // недописанный текст не теряется, если закрыть окно
