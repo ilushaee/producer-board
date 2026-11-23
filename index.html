@@ -369,9 +369,9 @@ ol.steps a { color: var(--ink); }
 .plan-done { margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); display: grid; gap: 10px; }
 .plan-done-head { display: flex; justify-content: space-between; align-items: baseline; }
 .plan-done-head b { font-size: 24px; }
-.bar { position: relative; height: 12px; border-radius: 999px; background: var(--glass-2); overflow: visible; }
-.bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #9b6cf5); }
-.bar-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .7; }
+.plan-bar { position: relative; height: 12px; border-radius: 999px; background: var(--glass-2); overflow: visible; }
+.plan-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #9b6cf5); }
+.plan-bar-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .7; }
 @media (max-width: 700px) { .plan-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } .plan-cell b { font-size: 17px; } }
 .share-note { margin: 10px 2px; }
 .note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -814,7 +814,7 @@ function decompBlock(p) {
       : row('Факт', [['База', num(F.base)], ['% в заявку', pct(F.conv1), vs(F.conv1, P?.conv1)], ['Заявок', num(F.leads)], ['% в продажу', pct(F.conv2), vs(F.conv2, P?.conv2)], ['Покупок', num(F.buys)], ['Выручка', F.revenue === null ? '—' : money(F.revenue)]]),
     P && data ? h('div', { class: 'plan-done' },
       h('div', { class: 'plan-done-head' }, h('span', {}, 'Выполнение плана по выручке'), h('b', { class: done !== null && done >= share * 100 ? 'good' : 'low' }, pct(done))),
-      h('div', { class: 'bar' }, h('div', { class: 'bar-fill', style: `width:${Math.min(100, done ?? 0)}%` }), share > 0 && share < 1 ? h('div', { class: 'bar-mark', style: `left:${share * 100}%`, title: 'Где надо быть сегодня' }) : null),
+      h('div', { class: 'plan-bar' }, h('div', { class: 'plan-bar-fill', style: `width:${Math.min(100, done ?? 0)}%` }), share > 0 && share < 1 ? h('div', { class: 'plan-bar-mark', style: `left:${share * 100}%`, title: 'Где надо быть сегодня' }) : null),
       share > 0 && share < 1 ? h('p', { class: 'hint' }, `Чтобы идти ровно, к сегодня нужно ${P.revenue !== null ? money(Math.round(P.revenue * share)) : '—'} выручки и ${num(P.leads === null ? null : P.leads * share)} заявок. Сейчас ${F.revenue === null ? '—' : money(F.revenue)} и ${num(F.leads)}.`) : null) : null,
     data && L && !L.dated ? h('p', { class: 'hint' }, 'В листе заявок нет столбца «Дата», поэтому заявки и покупки посчитаны за всё время. Добавь столбец «Дата» с датой заявки — буду считать по месяцам.') : null,
     data && !F.base && P ? h('p', { class: 'hint' }, 'Базу в таблице не нашёл — её факт можно вписать в «Изменить план».') : null,
