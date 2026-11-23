@@ -395,6 +395,30 @@ ol.steps a { color: var(--ink); }
 .stage-task { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
 .stage-task.done span:first-child { text-decoration: line-through; opacity: .6; }
 @media (max-width: 700px) { .stage-row { grid-template-columns: 12px minmax(0, 1fr) auto; } .stage-row > :last-child { grid-column: 2 / -1; } }
+/* лента этапов на цикл */
+.timeline { margin: 6px 0 18px; }
+.tl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); }
+.tl-grid { min-width: 760px; }
+.tl-row { display: grid; grid-template-columns: 200px minmax(0, 1fr); border-top: 1px solid var(--line); }
+.tl-row.tl-head { border-top: 0; }
+.tl-label { position: sticky; left: 0; z-index: 2; display: grid; gap: 2px; align-content: center; padding: 8px 12px; background: var(--solid); border-right: 1px solid var(--line); cursor: pointer; min-width: 0; }
+.tl-head .tl-label { cursor: default; }
+.tl-label b { font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+.tl-proj { font-size: 11px; color: var(--c); }
+.tl-track { position: relative; display: grid; align-items: center; min-height: 44px; }
+.tl-head .tl-track { min-height: 34px; }
+.tl-month { padding: 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); border-left: 1px solid var(--line); }
+.tl-month:first-child { border-left: 0; }
+.tl-month-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.tl-today { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ff7aa8; z-index: 1; }
+.tl-bar { position: relative; z-index: 1; height: 28px; display: flex; align-items: center; min-width: 0; padding: 0 8px; border-radius: 8px; background: var(--c); color: #17121f; font-size: 12px; font-weight: 550; cursor: pointer; overflow: hidden; }
+.tl-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-bar.cut-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.tl-bar.cut-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.tl-bar.done { opacity: .5; }
+.tl-bar.late { box-shadow: inset 0 0 0 2px #b3122f; }
+.timeline .blank { margin: 12px; }
+@media (max-width: 700px) { .tl-row { grid-template-columns: 130px minmax(0, 1fr); } }
 </style>
 </head>
 <body>
@@ -665,7 +689,7 @@ function home() {
     state.projects.length
       ? h('div', { class: 'cards' }, state.projects.map((p, i) => projectCard(p, sums[i])))
       : h('div', { class: 'blank' }, 'Проектов пока нет. Добавь первый.'),
-    (state.stages ?? []).length ? [h('div', { class: 'toolbar' }, h('h2', { class: 'sub' }, 'Этапы проектов')), calendar(state.stages, true, stageCal(null))] : null,
+    (state.stages ?? []).length ? [h('div', { class: 'toolbar' }, h('h2', { class: 'sub' }, 'Этапы проектов')), stageTimeline(state.projects.flatMap(p => projectStages(p.id)), true)] : null,
   ];
 }
 function lateLink(n, owner) {
@@ -832,8 +856,41 @@ function stagesBlock(p) {
       state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'stage-assistant', onclick: () => assistantDialog(p.id) }, icon('spark'), 'Надиктовать этапы') : null),
     list.length ? h('div', { class: 'stage-list' }, list.map(row))
       : h('div', { class: 'blank' }, 'Этап — крупный кусок проекта с датами: «Создание воронки», «Предобучение», «Поток». Добавь вручную или надиктуй помощнику.'),
-    list.length ? calendar(list, false, stageCal(p.id)) : null,
+    list.length ? stageTimeline(list, false) : null,
   ];
+}
+let stageQuarter = null;
+const quarterOf = iso => `${iso.slice(0, 4)}-${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`;
+const shiftQuarter = (q, k) => { let [y, n] = q.split('-').map(Number); n += k; while (n > 4) { n -= 4; y++; } while (n < 1) { n += 4; y--; } return `${y}-${n}`; };
+const MONTHS_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+function stageTimeline(list, showProject) {
+  stageQuarter ??= quarterOf(today());
+  const [y, n] = stageQuarter.split('-').map(Number), m0 = (n - 1) * 3;
+  const from = `${y}-${String(m0 + 1).padStart(2, '0')}-01`, to = new Date(Date.UTC(y, m0 + 3, 0)).toISOString().slice(0, 10);
+  const total = diffDays(from, to) + 1, col = iso => diffDays(from, iso) + 1;
+  const pct = iso => `${(diffDays(from, iso) / total) * 100}%`;
+  const shown = list.filter(st => st.start && st.due && st.start <= to && st.due >= from);
+  const months = [0, 1, 2].map(i => { const ym = `${y}-${String(m0 + i + 1).padStart(2, '0')}`; return [ym, col(`${ym}-01`)]; });
+  const go = (key, label, q, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { stageQuarter = q; render(); } }, text);
+  const marks = [...months.slice(1).map(([ym]) => h('div', { class: 'tl-month-line', style: `left:${pct(`${ym}-01`)}` })),
+    today() >= from && today() <= to ? h('div', { class: 'tl-today', style: `left:calc(${pct(today())} + ${50 / total}%)` }) : null];
+  const row = st => {
+    const a = Math.max(1, col(st.start)), b = Math.min(total, col(st.due));
+    const label = showProject ? [h('span', { class: `tl-proj ${projectColor(st.project_id)}` }, projectName(st.project_id)), h('b', {}, st.name)] : [h('b', {}, st.name)];
+    return h('div', { class: 'tl-row' },
+      h('div', { class: 'tl-label', ...opens(() => stageDialog(st)) }, label),
+      h('div', { class: 'tl-track', style: `grid-template-columns:repeat(${total},minmax(0,1fr))` }, marks.map(m => m?.cloneNode(true)),
+        h('div', { class: `tl-bar ${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}${st.start < from ? ' cut-l' : ''}${st.due > to ? ' cut-r' : ''}`,
+          style: `grid-column:${a} / ${b + 1}`, title: `${st.name}, ${datesText(st)}, ${stageState(st)[1]}`, ...opens(() => stageDialog(st)) }, h('span', {}, datesText(st)))));
+  };
+  return h('div', { class: 'timeline' },
+    h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, `Цикл ${n} · ${MONTHS_FULL[m0]} – ${MONTHS_FULL[m0 + 2]} ${y}`),
+      h('div', { class: 'row' }, go('q-prev', 'Предыдущий цикл', shiftQuarter(stageQuarter, -1), '←'), go('q-now', 'Текущий цикл', quarterOf(today()), 'Сейчас'), go('q-next', 'Следующий цикл', shiftQuarter(stageQuarter, 1), '→'))),
+    h('div', { class: 'tl-scroll' }, h('div', { class: 'tl-grid' },
+      h('div', { class: 'tl-row tl-head' }, h('div', { class: 'tl-label' }),
+        h('div', { class: 'tl-track', style: `grid-template-columns:repeat(${total},minmax(0,1fr))` },
+          months.map(([ym, c], i) => h('div', { class: 'tl-month', style: `grid-column:${c} / ${i < 2 ? months[i + 1][1] : total + 1}` }, MONTHS_FULL[Number(ym.slice(5)) - 1])))),
+      shown.length ? shown.map(row) : h('div', { class: 'blank' }, 'В этом цикле этапов нет. Переключи стрелками.'))));
 }
 function stageDialog(st, preset = {}) {
   const v = st ?? preset, pid = v.project_id;
