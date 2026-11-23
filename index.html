@@ -436,6 +436,11 @@ ol.steps a { color: var(--ink); }
 .switch::-webkit-scrollbar { display: none; }
 .switch button { flex: none; }
 .toolbar > * { min-width: 0; }
+@media (max-width: 700px) {
+  .stage-list.compact .stage-row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .stage-list.compact .stage-row > :last-child { grid-column: 2 / -1; }
+  .tl-grid { min-width: 680px; }
+}
 </style>
 </head>
 <body>
@@ -903,7 +908,13 @@ function stageTimeline(list, showProject) {
         h('div', { class: `tl-bar ${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}${st.start < from ? ' cut-l' : ''}${st.due > to ? ' cut-r' : ''}`,
           style: `grid-column:${a} / ${b + 1}`, title: `${st.name}, ${datesText(st)}, ${stageState(st)[1]}`, ...opens(() => stageDialog(st)) }, h('span', {}, datesText(st)))));
   };
-  return h('div', { class: 'timeline' },
+  setTimeout(() => {
+    const sc = wrap.querySelector('.tl-scroll'), mark = sc?.querySelector('.tl-today') ?? sc?.querySelector('.tl-bar');
+    if (!sc || !mark || sc.scrollWidth <= sc.clientWidth) return;
+    const label = sc.querySelector('.tl-label')?.offsetWidth ?? 0;
+    sc.scrollLeft += mark.getBoundingClientRect().left - sc.getBoundingClientRect().left - label - 24;
+  });
+  const wrap = h('div', { class: 'timeline' },
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, `Цикл ${n} · ${MONTHS_FULL[m0]} – ${MONTHS_FULL[m0 + 2]} ${y}`),
       h('div', { class: 'row' }, go('q-prev', 'Предыдущий цикл', shiftQuarter(stageQuarter, -1), '←'), go('q-now', 'Текущий цикл', quarterOf(today()), 'Сейчас'), go('q-next', 'Следующий цикл', shiftQuarter(stageQuarter, 1), '→'))),
     h('div', { class: 'tl-scroll' }, h('div', { class: 'tl-grid' },
@@ -913,6 +924,7 @@ function stageTimeline(list, showProject) {
       h('div', { class: 'tl-row tl-head tl-weeks' }, h('div', { class: 'tl-label' }, h('span', { class: 'hint' }, 'недели с пн')),
         h('div', { class: 'tl-track' }, mondays.map(d => h('span', { class: `tl-day${d <= today() && today() < addDays(d, 7) ? ' now' : ''}`, style: `left:${pct(d)}` }, String(Number(d.slice(8))))))),
       shown.length ? shown.map(row) : h('div', { class: 'blank' }, 'В этом цикле этапов нет. Переключи стрелками.'))));
+  return wrap;
 }
 function stageDialog(st, preset = {}) {
   const v = st ?? preset, pid = v.project_id;
