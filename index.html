@@ -206,6 +206,10 @@ dialog::backdrop { background: rgba(12, 10, 30, .62); backdrop-filter: blur(5px)
 dialog form { display: grid; gap: 14px; }
 dialog label { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
 dialog .field, dialog select { width: 100%; font-size: 16px; color: var(--ink); }
+/* iPhone рисует дату по-своему: без этого поле съезжает, а пустое сжимается в точку */
+input[type=date].field { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; height: 44px; line-height: 44px; text-align: left; color-scheme: dark; }
+input[type=date].field::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type=date].field::-webkit-datetime-edit { padding: 0; }
 dialog p { margin: 0; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .two > * { min-width: 0; }
@@ -706,7 +710,8 @@ function card(t, showProject) {
       h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null)),
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
-    h('div', { class: 'm' }, 'Делает: ', t.person ?? 'не назначено'));
+    h('div', { class: 'm' }, 'Делает: ', t.person ?? 'не назначено'),
+    h('div', { class: 'm' }, 'Проверяет: ', t.controller ?? 'не назначено'));
 }
 function nextCard(cards, y) {
   return [...cards.querySelectorAll('.kcard')].find(c => {
