@@ -356,6 +356,8 @@ ol.steps a { color: var(--ink); }
 .repeat .inline { display: flex; align-items: center; gap: 10px; }
 .repeat .inline .field { width: 90px; }
 .repeat .day input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.col-repeat { background: linear-gradient(180deg, rgba(122, 108, 255, .10), transparent 60%); }
+.kcard .done-once { margin-top: 8px; padding: 6px 12px; min-height: 0; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -428,6 +430,7 @@ function go(hash) {
 const MODEL = { mentorship: 'Наставничество', club: 'Клуб' };
 const STATUS = { todo: 'Сделать', doing: 'В работе', review: 'На проверке', done: 'Готово' };
 const HINT = {
+  repeat: 'Что делается регулярно. «✓» отмечает раз и переносит на следующий.',
   todo: 'Всё новое попадает сюда.',
   doing: 'Делают прямо сейчас.',
   review: 'Сделано, ждёт приёмки.',
@@ -797,7 +800,7 @@ const matches = (t, f) =>
   (!f.project.size || f.project.has(String(t.project_id ?? 'none'))) &&
   (!f.person.size || f.person.has(t.person ?? 'none')) &&
   (!f.status.size || f.status.has(t.status) || (f.status.has('late') && isLate(t)));
-const shownColumns = f => Object.keys(STATUS).filter(s => !f.status.size || f.status.has(s) || f.status.has('late'));
+const shownColumns = f => [...(SHEETS && !f.status.size ? ['repeat'] : []), ...Object.keys(STATUS).filter(s => !f.status.size || f.status.has(s) || f.status.has('late'))];
 const focusFilter = () => $('[data-key=filter]').focus();
 const resetButton = filter => h('button', { class: 'link', type: 'button', onclick: () => { for (const k of ['project', 'person', 'status']) filter[k].clear(); render(); focusFilter(); } }, 'Сбросить');
 function filterPanel(filter, projectId, active) {
@@ -831,11 +834,21 @@ const opens = open => ({
   onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } },
 });
 
+const COLUMN = status => (status === 'repeat' ? '🔁 Регулярные' : STATUS[status]);
+const inColumn = (list, status) => (status === 'repeat' ? list.filter(t => t.repeat).sort((a, b) => (a.due ?? '9') < (b.due ?? '9') ? -1 : 1) : list.filter(t => !t.repeat && t.status === status));
+function dropTo(status, before) {
+  const t = state.tasks.find(x => x.id === dragged.id);
+  if (!t) return;
+  if (status === 'repeat' && !t.repeat) { dragged = null; clearGap(); taskDialog({ ...t, repeat: 'daily' }); toast('Выбери, как часто повторять, и сохрани'); return; }
+  if (t.repeat && status === 'done') { dragged = null; clearGap(); doneOnce(t); return; }
+  if (t.repeat) { dragged = null; clearGap(); if (status !== 'repeat') toast('Регулярная задача живёт в своей колонке. Сделать разовой: открой её и убери повтор'); return; }
+  moveCard(t.id, status, before);
+}
 function board(list, showProject, columns, add) {
   return h('div', { class: 'board' }, columns.map(status => {
-    const items = list.filter(t => t.status === status);
+    const items = inColumn(list, status);
     const cards = h('div', { class: 'cards-list' }, items.map(t => card(t, showProject)));
-    const col = h('section', { class: 'col', 'aria-label': `${STATUS[status]}: ${items.length}`,
+    const col = h('section', { class: `col${status === 'repeat' ? ' col-repeat' : ''}`, 'aria-label': `${COLUMN(status)}: ${items.length}`,
       ondragenter: accept,
       ondragover: e => {
         if (!dragged) return;
@@ -848,10 +861,10 @@ function board(list, showProject, columns, add) {
         if (!dragged) return;
         e.preventDefault();
         const next = nextCard(cards, e.clientY);
-        moveCard(dragged.id, status, next ? Number(next.dataset.id) : null);
+        dropTo(status, next ? Number(next.dataset.id) : null);
       } },
-      h('div', { class: 'col-head' }, h('h3', {}, STATUS[status]), h('span', { class: 'count' }, String(items.length)),
-        h('button', { class: 'plus', type: 'button', 'aria-label': `Добавить в «${STATUS[status]}»`, 'data-key': `plus-${status}`, onclick: () => add({ status }) }, icon('plus'))),
+      h('div', { class: 'col-head' }, h('h3', {}, COLUMN(status)), h('span', { class: 'count' }, String(items.length)),
+        h('button', { class: 'plus', type: 'button', 'aria-label': `Добавить в «${COLUMN(status)}»`, 'data-key': `plus-${status}`, onclick: () => add(status === 'repeat' ? { repeat: 'daily' } : { status }) }, icon('plus'))),
       cards, items.length ? null : h('p', { class: 'hint' }, HINT[status]));
     return col;
   }));
@@ -861,11 +874,12 @@ function card(t, showProject) {
   return h('div', { class: `kcard${t.status === 'done' ? ' done' : ''}${t.saving ? ' saving' : ''}`, 'data-id': t.id, 'data-key': `t${t.id}`, ...(t.saving ? {} : { ...opens(() => taskDialog(t)), ...draggable(t) }) },
     h('div', { class: 'kcard-top' },
       h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null)),
-      t.repeat ? h('span', { class: 'rep', title: 'Регулярная задача' }, `🔁 ${repeatText(t.repeat)}`) : null,
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
+    t.repeat ? h('div', { class: 'm rep' }, `🔁 ${repeatText(t.repeat)}`) : null,
     h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
     t.controller ? h('div', { class: 'm' }, 'Проверяет: ', t.controller) : null,
+    t.repeat && !t.saving && SHEETS ? h('button', { class: 'btn small done-once', type: 'button', 'data-key': `once-${t.id}`, onclick: e => { e.stopPropagation(); doneOnce(t); } }, '✓ Сделано') : null,
     t.note ? h('div', { class: 'm note' }, icon('link'), linksIn(t.note).length ? plural(linksIn(t.note).length, 'ссылка', 'ссылки', 'ссылок') : 'есть описание') : null);
 }
 const DOW = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -906,6 +920,10 @@ function noteField(v) {
   area.value = v ?? '';
   draw();
   return h('label', {}, 'Описание', area, list);
+}
+function doneOnce(t) {
+  background(() => { t.done = today(); }, () => api('PATCH', `/api/tasks/${t.id}`, { status: 'done' }));
+  toast(`Отмечено: ${t.title}`);
 }
 function nextCard(cards, y) {
   return [...cards.querySelectorAll('.kcard')].find(c => {
