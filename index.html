@@ -373,6 +373,8 @@ ol.steps a { color: var(--ink); }
 .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #9b6cf5); }
 .bar-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .7; }
 @media (max-width: 700px) { .plan-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } .plan-cell b { font-size: 17px; } }
+.share-note { margin: 10px 2px; }
+.note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -677,7 +679,8 @@ function project(id) {
   return [
     hero({
       crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: MODEL[p.model],
-      action: state.me.owner ? h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить') : null,
+      action: state.me.owner ? [h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить'),
+        REMOTE ? h('button', { class: 'btn', type: 'button', 'data-key': 'share-project', onclick: () => shareDialogOwner(p) }, p.share ? 'Ссылка ✓' : 'Поделиться') : null] : null,
       strip: [state.me.money ? meta('Месяц', picker) : null, state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
         meta('Просрочено', lateLink(list.filter(isLate).length, 'project')), projectTab === 'tasks' ? members(filters.project) : null],
     }),
@@ -1656,6 +1659,84 @@ function takeLink() {
   history.replaceState(null, '', '#/');
   return true;
 }
+const SHARE_LINK = /^#\/s\/([\w.-]+\.workers\.dev)\/(\w{16,64})$/;
+async function shareView() {
+  const [, host, token] = location.hash.match(SHARE_LINK);
+  document.body.classList.remove('auth');
+  $('#nav').replaceChildren(); $('#fab').replaceChildren();
+  document.body.classList.add('shared');
+  $('#view').replaceChildren(h('div', { class: 'blank' }, 'Загружаю проект…'));
+  let data = null;
+  const pull = async () => {
+    let v = null;
+    try { v = await (await fetch(`https://${host}/share`, { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token }) })).json(); }
+    catch { if (!data) $('#view').replaceChildren(h('div', { class: 'blank' }, 'Нет связи. Обнови страницу.')); return; }
+    if (v?.status !== 200) { $('#view').replaceChildren(h('div', { class: 'blank' }, v?.body?.error ?? 'Ссылка не работает.')); return; }
+    data = v.body;
+    if (!$('#dialog').open) drawShare(data);
+  };
+  await pull();
+  setInterval(pull, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
+}
+function drawShare(d) {
+  document.title = d.project.name;
+  const open = d.tasks.filter(t => t.status !== 'done' || t.repeat), late = open.filter(isLate).length;
+  const col = (title, list, hint) => h('section', { class: 'col' }, h('div', { class: 'col-head' }, h('h3', {}, title), h('span', { class: 'count' }, String(list.length))),
+    h('div', { class: 'cards-list' }, list.map(shareCard)), list.length ? null : h('p', { class: 'hint' }, hint));
+  const by = st => d.tasks.filter(t => !t.repeat && t.status === st);
+  const recent = by('done').sort((a, b) => (b.done ?? '') < (a.done ?? '') ? -1 : 1).slice(0, 15);
+  $('#view').replaceChildren(
+    hero({ crumbs: 'Проект', title: d.project.name, side: MODEL[d.project.model], strip: [
+      meta('Открыто', h('b', { class: 'big' }, String(open.length))), meta('Просрочено', h('b', { class: late ? 'big bad' : 'big' }, String(late))),
+      meta('Обновлено', h('b', {}, new Date(d.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })))] }),
+    h('p', { class: 'hint share-note' }, 'Только просмотр. Страница обновляется сама раз в минуту.'),
+    h('div', { class: 'board' },
+      d.tasks.some(t => t.repeat) ? col('🔁 Регулярные', d.tasks.filter(t => t.repeat), '') : null,
+      col('Сделать', by('todo'), 'Пусто.'), col('В работе', by('doing'), 'Пусто.'), col('На проверке', by('review'), 'Пусто.'), col('Готово', recent, 'Пока ничего.')));
+}
+function shareCard(t) {
+  const dates = datesText(t);
+  return h('div', { class: `kcard${t.status === 'done' && !t.repeat ? ' done' : ''}`, ...opens(() => shareDialog(t)) },
+    h('div', { class: 'kcard-top' }, h('span', { class: `when${isLate(t) ? ' bad' : ''}` }, icon('date'), h('span', {}, dates || 'Без дат', isLate(t) ? ', просрочено' : null))),
+    h('div', { class: 't' }, t.title),
+    t.repeat ? h('div', { class: 'm rep' }, `🔁 ${repeatText(t.repeat)}`) : null,
+    h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
+    t.note ? h('div', { class: 'm note' }, icon('link'), linksIn(t.note).length ? plural(linksIn(t.note).length, 'ссылка', 'ссылки', 'ссылок') : 'есть описание') : null);
+}
+function shareDialog(t) {
+  const dlg = $('#dialog');
+  dlg.classList.remove('roomy');
+  dlg.setAttribute('aria-labelledby', 'dialog-title');
+  const rows = [['Статус', STATUS[t.status]], ['Ответственный', t.person ?? 'не назначен'], ['Сроки', datesText(t) || 'без дат'], t.repeat ? ['Повтор', `${repeatText(t.repeat)}, сделано ${plural(t.count ?? 0, 'раз', 'раза', 'раз')}`] : null].filter(Boolean);
+  dlg.replaceChildren(h('div', { class: 'assist' }, h('h2', { id: 'dialog-title' }, t.title),
+    h('dl', { class: 'fields' }, rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+    t.note ? h('p', { class: 'note-text' }, t.note) : null,
+    t.note && linksIn(t.note).length ? h('div', { class: 'links' }, linksIn(t.note).map(u => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', {}, shortUrl(u))))) : null,
+    h('div', { class: 'row' }, h('span', { class: 'grow' }), h('button', { class: 'btn main', type: 'button', onclick: () => dlg.close() }, 'Закрыть'))));
+  dlg.showModal();
+}
+function shareDialogOwner(p) {
+  const relay = state.assistant?.relay;
+  const box = h('div', {});
+  const linkOf = (token, r) => `${location.origin}${location.pathname}#/s/${new URL(r).host}/${token}`;
+  const show = url => box.replaceChildren(
+    h('p', {}, 'Кто откроет эту ссылку, увидит только задачи этого проекта, без лидов, денег и других проектов. Менять ничего не сможет.'),
+    url ? h('div', { class: 'row' }, h('input', { class: 'field', readonly: true, value: url, onclick: e => e.target.select() }),
+      h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка скопирована'), () => toast('Выдели ссылку и скопируй')) }, 'Скопировать')) : null,
+    h('div', { class: 'row' },
+      url ? h('button', { class: 'btn danger', type: 'button', onclick: () => attempt(async () => { await api('DELETE', `/api/projects/${p.id}/share`); await reload(); show(null); toast('Ссылка отозвана'); }) }, 'Отозвать') : null,
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn', type: 'button', onclick: () => attempt(async () => { const r = await api('POST', `/api/projects/${p.id}/share`, {}); await reload(); show(linkOf(r.token, r.relay)); }) }, url ? 'Сделать новую' : 'Создать ссылку'),
+      h('button', { class: 'btn main', type: 'button', onclick: () => $('#dialog').close() }, 'Готово')));
+  const dlg = $('#dialog');
+  dlg.classList.remove('roomy');
+  dlg.setAttribute('aria-labelledby', 'dialog-title');
+  dlg.replaceChildren(h('div', { class: 'assist' }, h('h2', { id: 'dialog-title' }, `Ссылка на проект «${p.name}»`), box));
+  if (!relay) box.replaceChildren(h('p', {}, 'Ссылка работает через Cloudflare, а он не подключён.'));
+  else show(p.share ? linkOf(p.share, relay) : null);
+  dlg.showModal();
+}
 function closedRemote() {
   const field = h('input', { class: 'field', name: 'link', type: 'url', inputmode: 'url', autocomplete: 'off', placeholder: 'https://ilushaee.github.io/…', 'aria-label': 'Приватная ссылка', required: true });
   const form = h('form', { class: 'auth-card', onsubmit: e => {
@@ -1682,6 +1763,7 @@ async function enterRemote() {
   await enter();
 }
 function moved() {
+  if (REMOTE && SHARE_LINK.test(location.hash)) { location.reload(); return; }
   if (REMOTE && (takeLink() || !backend)) { enterRemote().catch(e => toast(e.message)); return; }
   if (/^#\/(invite|link)\//.test(here())) state = null;
   if (!state) { authScreen(); return; }
@@ -1705,6 +1787,7 @@ document.addEventListener('visibilitychange', () => {
 });
 try {
   if (GAS) await enter();
+  else if (REMOTE && SHARE_LINK.test(location.hash)) await shareView();
   else if (REMOTE) await enterRemote();
   else {
     const { me } = await api('GET', '/api/me');
