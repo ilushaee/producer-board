@@ -7,7 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1b1726">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src https://script.google.com https://script.googleusercontent.com https://*.workers.dev; base-uri 'none'; form-action 'none'">
 <title>Продюсерский центр</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='32' x2='32' y2='0' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%234d7dff'/%3E%3Cstop offset='1' stop-color='%23f59bd0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%231b1726'/%3E%3Cpath d='M9 23v-6M16 23V9M23 23V13' fill='none' stroke='url(%23g)' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -516,6 +516,16 @@ function viaGoogle(method, path, body, signal) {
   });
 }
 async function viaRemote(method, path, body, signal) {
+  const relay = path === '/api/assistant' && state?.assistant?.relay;
+  if (relay) {
+    let r;
+    try { r = await fetch(`${relay}/assistant`, { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', signal, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ backend, ...body }) }); }
+    catch (e) { throw e.name === 'AbortError' ? e : new Error('Нет связи с Cloudflare'); }
+    const v = await r.json().catch(() => null);
+    if (!v) throw new Error('Cloudflare не ответил. Попробуй ещё раз');
+    if (v.status !== 200) throw new Error(v.body?.error || 'Не получилось');
+    return v.body;
+  }
   let r;
   try {
     r = await fetch(`https://script.google.com/macros/s/${backend}/exec`, { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', signal, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, path, body: body ?? null }) });
@@ -1281,8 +1291,8 @@ function assistantSettings() {
     }
   } }, h('input', { class: 'field', type: 'password', name: 'key', placeholder: 'sk-ant-…', 'aria-label': 'Ключ Claude API', autocomplete: 'off', required: true }), btn);
   return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Помощник'),
-    h('p', {}, ready ? 'Ключ Claude сохранён, помощник работает.' : ['Нужен ключ Claude API: ', h('a', { href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'консоль Claude'), ' → API Keys. Оплачивается отдельно от подписки.'])),
-    ready ? h('button', { class: 'btn danger', type: 'button', 'data-key': 'del-key', onclick: () => attempt(async () => { await api('DELETE', '/api/assistant/key'); await reload(); toast('Ключ удалён'); }) }, 'Удалить ключ') : null),
+    h('p', {}, state.assistant.relay ? 'Работает через Cloudflare, ключ Claude хранится там.' : ready ? 'Ключ Claude сохранён, помощник работает.' : ['Нужен ключ Claude API: ', h('a', { href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'консоль Claude'), ' → API Keys. Оплачивается отдельно от подписки.'])),
+    ready && !state.assistant.relay ? h('button', { class: 'btn danger', type: 'button', 'data-key': 'del-key', onclick: () => attempt(async () => { await api('DELETE', '/api/assistant/key'); await reload(); toast('Ключ удалён'); }) }, 'Удалить ключ') : null),
     ready ? null : [form, err, h('p', { class: 'hint' }, SHEETS ? 'Ключ хранится в настройках скрипта Google. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.' : 'Ключ хранится только на этом компьютере. В Claude уходят названия задач, проекты, имена команды и даты. Выручка не уходит.')]);
 }
 function telegramSettings() {
@@ -1301,11 +1311,11 @@ function telegramSettings() {
   const steps = (...items) => h('ol', { class: 'steps' }, items.map(x => h('li', {}, x)));
   return h('section', { class: 'section' }, h('div', { class: 'head' }, h('div', {}, h('h2', {}, 'Telegram-бот'),
     h('p', {}, !t.ready ? 'Присылает каждому его задачи в 9:00 и 20:00 по Москве, принимает новые задачи текстом.'
-      : running ? `Бот @${t.bot} работает.` : `Бот @${t.bot} подключён, но расписание ещё не включено.`)),
-    t.ready ? h('button', { class: 'btn danger', type: 'button', onclick: () => attempt(async () => { await api('DELETE', '/api/telegram/key'); await reload(); toast('Бот отключён'); }) }, 'Отключить бота') : null),
+      : running ? `Бот @${t.bot} работает${t.relay ? ' через Cloudflare' : ''}.` : t.relay ? `Бот @${t.bot} подключён через Cloudflare, но давно не выходил на связь.` : `Бот @${t.bot} подключён, но расписание ещё не включено.`)),
+    t.ready && !t.relay ? h('button', { class: 'btn danger', type: 'button', onclick: () => attempt(async () => { await api('DELETE', '/api/telegram/key'); await reload(); toast('Бот отключён'); }) }, 'Отключить бота') : null),
     !t.ready ? [steps(['В Telegram открой ', h('a', { href: 'https://t.me/BotFather', target: '_blank', rel: 'noopener' }, '@BotFather'), ', отправь /newbot, придумай имя и адрес бота (адрес кончается на bot).'],
       'Он пришлёт ключ вида 1234567890:AAE… Вставь его сюда.'), form, err] : null,
-    t.ready && !running ? [h('p', {}, 'Осталось один раз включить расписание, чтобы бот проверял сообщения каждую минуту:'),
+    t.ready && !running && !t.relay ? [h('p', {}, 'Осталось один раз включить расписание, чтобы бот проверял сообщения каждую минуту:'),
       steps('Открой проект сайта в Apps Script (script.google.com).', 'Слева нажми «Триггеры» (значок будильника), внизу «Добавить триггер».',
         'Функция: api. Источник события: «Триггер по времени». Тип: «Таймер с интервалом в минутах», «Каждую минуту».', 'Сохрани и разреши доступ, если Google спросит.'),
       minutes !== null ? h('p', { class: 'hint' }, `Последний раз бот проверял сообщения ${minutes} мин назад.`) : null] : null,
