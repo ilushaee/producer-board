@@ -581,6 +581,19 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
   .cal-head .row .btn { min-height: 36px; padding: 0 12px; font-size: 14px; }
   .cal-head .row .btn.ghost { margin-right: auto; }
 }
+
+/* Телефон: в календаре видно два дня и краешек третьего, листается по дням. */
+@media (max-width: 700px) {
+  .cal-grid { min-width: calc((100vw - 24px) / 2.25 * 7); }
+  .cal-scroll { scroll-snap-type: x proximity; }
+  .cal-scroll .day { scroll-snap-align: start; }
+  .cal-days div { padding: 10px; }
+}
+@media (pointer: coarse) { .grip { display: none; } }
+@media (max-width: 700px) {
+  /* Длинная задача на несколько дней: название едет вместе с прокруткой и не прячется за левым краем. */
+  .bar-text { position: sticky; left: 10px; max-width: calc(100vw - 70px); }
+}
 </style>
 </head>
 <body>
@@ -1489,6 +1502,8 @@ const TASK_CAL = {
   add: (d, end = d) => taskDialog(null, { project_id: pageProject(), start: d, due: end }),
 };
 let hideDone = load('cal-hide-done') === '1';
+const MOUSE = matchMedia('(hover: hover) and (pointer: fine)').matches;
+let calScroll = null;
 function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
   const doneCount = cfg.doneToggle ? list.filter(t => t.status === 'done').length : 0;
@@ -1502,11 +1517,20 @@ function calendar(list, showProject, cfg = TASK_CAL) {
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, monthTitle(calMonth)),
       h('div', { class: 'row' }, doneBtn, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
         go('cal-now', 'Текущий месяц', thisMonth(), 'Сегодня'), go('cal-next', 'Следующий месяц', addMonths(calMonth, 1), '→'))),
-    h('div', { class: 'cal-scroll' }, h('div', { class: 'cal-grid' },
+    calScrollBox(h('div', { class: 'cal-scroll', onscroll: e => { calScroll = { month: calMonth, left: e.currentTarget.scrollLeft }; } }, h('div', { class: 'cal-grid' },
       h('div', { class: 'cal-days', 'aria-hidden': 'true' }, ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => h('div', {}, d))),
-      monthWeeks(calMonth).map(days => week(days, list, showProject, cfg)))),
+      monthWeeks(calMonth).map(days => week(days, list, showProject, cfg))))),
     undated.length ? h('div', { class: 'undated' }, h('h3', {}, 'Без дат'), h('p', { class: 'hint' }, 'Перетащи на нужный день.'),
       h('div', { class: 'chips' }, undated.map(t => bar(t, showProject, 'loose', undefined, cfg)))) : null);
+}
+function calScrollBox(sc) {
+  setTimeout(() => {
+    if (!sc.isConnected || sc.scrollWidth <= sc.clientWidth) return;
+    if (calScroll?.month === calMonth) { sc.scrollLeft = calScroll.left; return; }
+    const cell = sc.querySelector('.day.now');
+    if (cell) sc.scrollLeft += cell.getBoundingClientRect().left - sc.getBoundingClientRect().left;
+  });
+  return sc;
 }
 function week(days, list, showProject, cfg) {
   const segments = layoutWeek(days, list, cfg.sink ?? (() => false));
@@ -1549,7 +1573,7 @@ function week(days, list, showProject, cfg) {
 function bar(t, showProject, cls, grabbed, cfg = TASK_CAL, edges = null) {
   const name = cfg.name(t, showProject), full = cfg.info(t, name), meta = cfg.meta?.(t, showProject), foot = cfg.foot?.(t, showProject);
   const move = cfg.kind === 'task' || state.me.owner;
-  const grips = move && edges && !t.saving;
+  const grips = move && edges && !t.saving && MOUSE; // на телефоне края не тянутся: палец листает календарь
   return h('div', { class: `bar ${cfg.cls(t, showProject)} ${cls}`, title: full, 'aria-label': full, 'data-key': `${cfg.kind[0]}${t.id}`,
     ...(t.saving ? {} : { ...opens(() => cfg.open(t)), ...(move ? draggable(t, grabbed, cfg.kind) : {}) }) },
     grips && edges.l ? grip(t, cfg, 'start') : null,
