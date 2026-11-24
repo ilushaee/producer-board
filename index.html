@@ -594,6 +594,33 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
   /* Длинная задача на несколько дней: название едет вместе с прокруткой и не прячется за левым краем. */
   .bar-text { position: sticky; left: 10px; max-width: calc(100vw - 70px); }
 }
+
+.narrow-only { display: none; }
+/* Телефон: шапка тоже прилипает, но компактная — две строки кнопок и строка месяца. */
+@media (max-width: 700px) {
+  .wide-only { display: none; }
+  .narrow-only { display: inline; }
+  .tasks-bar { position: sticky; top: 0; z-index: 7; margin: 6px -12px 10px; padding: 8px 12px; background: rgba(27, 23, 38, .97); backdrop-filter: blur(8px); border-radius: 0 0 16px 16px; }
+  .tasks-bar > .toolbar { gap: 6px; }
+  .tasks-bar .switch button { min-height: 32px; }
+  .tasks-bar .n-tasks { display: none; }
+  .picks { flex: 1 1 0; }
+  .picks .btn.pick { min-height: 38px; padding: 0 10px; font-size: 14px; }
+  .btn.pick .pick-label { font-size: 12px; }
+  .tasks-bar .btn.icon-btn, .tasks-bar .add-btn { flex: none; width: 38px; min-height: 38px; padding: 0; }
+  main:has(.tasks-bar) .cal-head { position: sticky; top: var(--tasks-bar, 0px); z-index: 6; flex-wrap: nowrap; gap: 6px; margin: 0 -12px 8px; padding: 6px 12px; background: rgba(27, 23, 38, .97); backdrop-filter: blur(8px); }
+  .cal-head h3 { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 16px; }
+  .cal-head .row { width: auto; flex: none; }
+  .cal-head .row .btn { min-height: 34px; padding: 0 10px; font-size: 13px; }
+  .cal-head .row .btn.ghost { margin-right: 0; }
+}
+@media (max-width: 700px) {
+  .cal-head { gap: 4px; }
+  .cal-head h3 { font-size: 15px; margin: 0; }
+  .cal-head .row { gap: 4px; }
+  .cal-head .row .btn { padding: 0 8px; }
+  .cal-head .row .btn[data-key$=prev], .cal-head .row .btn[data-key$=next] { width: 30px; padding: 0; }
+}
 </style>
 </head>
 <body>
@@ -1312,7 +1339,7 @@ function tasksBlock(list, filter, projectId) {
     h('span', { class: 'grow' }),
     count,
     state.me.ai ? h('button', { class: 'btn icon-btn', type: 'button', 'data-key': 'assistant', title: 'Помощник', 'aria-label': 'Помощник', onclick: () => assistantDialog(projectId) }, icon('spark')) : null,
-    h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Задача')));
+    h('button', { class: 'btn main add-btn', type: 'button', 'data-key': 'add', 'aria-label': 'Добавить задачу', onclick: () => add() }, icon('plus'), h('span', { class: 'wide-only' }, 'Задача'))));
   barSize ??= new ResizeObserver(([e]) => document.documentElement.style.setProperty('--tasks-bar', `${Math.round(e.target.offsetHeight)}px`));
   barSize.disconnect();
   barSize.observe(bar);
@@ -1510,7 +1537,8 @@ function calendar(list, showProject, cfg = TASK_CAL) {
   if (cfg.doneToggle && hideDone) list = list.filter(t => t.status !== 'done');
   const doneBtn = cfg.doneToggle ? h('button', { class: `btn ghost${hideDone ? ' set' : ''}`, type: 'button', 'data-key': 'cal-done',
     onclick: () => { hideDone = !hideDone; store('cal-hide-done', hideDone ? '1' : '0'); render(); } },
-    hideDone ? `Готовые скрыты${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
+    h('span', { class: 'wide-only' }, hideDone ? `Готовые скрыты${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые'),
+    h('span', { class: 'narrow-only' }, hideDone ? '＋ готовые' : '− готовые')) : null;
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
   const undated = cfg.undated ? list.filter(t => !range(t)) : [];
   return h('div', { class: 'calendar' },
