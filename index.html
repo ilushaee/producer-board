@@ -533,6 +533,12 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
 /* Воздух между названием и кнопками — как между кнопками и проектом. */
 .bar-name + .bar-meta { margin-top: 4px; }
 .bar-foot { padding-top: 7px; }
+/* На широком экране строка «N задач · Добавить · Поиск · Доска/Календарь/Этапы · Фильтр» тоже едет за тобой, шапка календаря — сразу под ней. */
+@media (min-width: 900px) {
+  .tasks-bar { position: sticky; top: 0; z-index: 7; margin-inline: -8px; padding: 10px 8px; background: rgba(27, 23, 38, .97); backdrop-filter: blur(8px); border-radius: 0 0 16px 16px; }
+  main:has(.tasks-bar) .cal-head { top: var(--tasks-bar, 0px); border-radius: 0; }
+  main:has(.tasks-bar) .cal-days { top: calc(var(--tasks-bar, 0px) + 64px); }
+}
 </style>
 </head>
 <body>
@@ -1225,6 +1231,8 @@ const tasks = () => [
     meta('Просрочено', lateLink(state.tasks.filter(isLate).length, 'tasks')), members(filters.tasks)] }),
   ...tasksBlock(state.tasks, filters.tasks, null),
 ];
+
+let barSize = null;
 function tasksBlock(list, filter, projectId) {
   for (const [key, , opts] of filterGroups(projectId)) for (const v of filter[key]) if (!opts.some(([o]) => o === v)) filter[key].delete(v);
   const only = projectId ?? (filter.project.size === 1 ? Number([...filter.project][0]) || null : null);
@@ -1241,15 +1249,19 @@ function tasksBlock(list, filter, projectId) {
     if (left) results.querySelector('.board')?.scrollTo({ left, behavior: 'instant' });
   };
   draw();
-  return [
-    h('div', { class: 'toolbar' }, count,
+  const bar = h('div', { class: 'toolbar tasks-bar' }, count,
       h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Добавить задачу'),
       state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant', onclick: () => assistantDialog(projectId) }, icon('spark'), 'Помощник') : null,
       h('span', { class: 'grow' }),
       h('label', { class: 'search' }, icon('search'), h('input', { type: 'search', placeholder: 'Найти задачу', 'aria-label': 'Найти задачу', value: filter.query, 'data-key': 'search', oninput: e => { filter.query = e.target.value; draw(); } })),
       h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null),
       h('button', { class: 'btn', type: 'button', 'aria-expanded': String(filterOpen), 'data-key': 'filter', onclick: () => { filterOpen = !filterOpen; render(); } },
-        icon('filter'), active.length ? `Фильтр: ${active.length}` : 'Фильтр')),
+        icon('filter'), active.length ? `Фильтр: ${active.length}` : 'Фильтр'));
+  barSize ??= new ResizeObserver(([e]) => document.documentElement.style.setProperty('--tasks-bar', `${Math.round(e.target.offsetHeight)}px`));
+  barSize.disconnect();
+  barSize.observe(bar);
+  return [
+    bar,
     filterOpen ? filterPanel(filter, projectId, active) : active.length ? filterSummary(filter, active) : null,
     results,
   ].filter(Boolean);
