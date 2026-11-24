@@ -349,6 +349,7 @@ table.shares { width: 100%; border-collapse: collapse; font-variant-numeric: tab
 
 /* описание задачи */
 dialog label textarea.field { min-height: 92px; }
+dialog label textarea.note-line { min-height: 44px; resize: none; overflow-y: auto; }
 .links { display: flex; flex-wrap: wrap; gap: 6px; }
 .links:empty { display: none; }
 .links a { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 5px 10px; border-radius: 999px; background: var(--glass-2); color: var(--ink); font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
@@ -469,6 +470,16 @@ ol.steps a { color: var(--ink); }
 .menu-item.s-review .dot { background: #7aa7ff; }
 .menu-item.s-done .dot { background: #4fd18b; }
 .menu-item .tick { margin-left: auto; opacity: .8; }
+
+/* Шапка окна с крестиком и плотная раскладка полей. */
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -2px; }
+.dlg-head h2 { margin: 0; }
+.dlg-head .x { flex: none; width: 36px; height: 36px; margin: -6px -8px 0 0; border: 0; border-radius: 50%; background: none; color: var(--ink-2); font-size: 26px; line-height: 1; cursor: pointer; }
+.dlg-head .x:hover, .dlg-head .x:focus-visible { background: var(--glass-2); color: var(--ink); }
+dialog form { gap: 12px; }
+.status-repeat { align-items: start; }
+.status-repeat .repeat { display: contents; } /* дни недели и число месяца уходят строкой ниже, на всю ширину */
+.status-repeat .repeat .days, .status-repeat .repeat .inline, .status-repeat .repeat .hint { grid-column: 1 / -1; }
 </style>
 </head>
 <body>
@@ -1236,16 +1247,18 @@ function repeatField(t) {
     hidden.value = !k ? '' : k === 'weekly' ? (picked.length ? `weekly:${picked.join(',')}` : '') : k === 'monthly' ? `monthly:${n}` : k;
   }
   return h('div', { class: 'repeat' }, h('label', {}, 'Повтор', pick), daysBox, numBox, hidden,
-    t?.repeat ? h('p', { class: 'hint' }, `Сделано ${plural(t.count ?? 0, 'раз', 'раза', 'раз')}${t.missed ? `, пропущено ${t.missed}` : ''}. «Готово» переносит задачу на следующий раз.`) : h('p', { class: 'hint' }, 'Регулярная задача после «Готово» сама переносится на следующий раз.'));
+    t?.repeat ? h('p', { class: 'hint' }, `Сделано ${plural(t.count ?? 0, 'раз', 'раза', 'раз')}${t.missed ? `, пропущено ${t.missed}` : ''}. «Готово» переносит задачу на следующий раз.`) : null);
 }
 const linksIn = text => [...new Set((String(text ?? '').match(/https?:\/\/[^\s<>"«»]+/gi) || []).map(u => u.replace(/[.,;:!?)\]]+$/, '')))];
 const shortUrl = u => { try { const x = new URL(u); const rest = (x.pathname + x.search).replace(/\/$/, ''); return x.host.replace(/^www\./, '') + (rest.length > 28 ? `${rest.slice(0, 27)}…` : rest); } catch { return u; } };
 function noteField(v) {
   const list = h('div', { class: 'links' });
   const draw = () => list.replaceChildren(...linksIn(area.value).map(u => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', {}, shortUrl(u)))));
-  const area = h('textarea', { class: 'field', name: 'note', rows: 4, maxlength: 5000, placeholder: 'Подробности, ссылки на материалы, доски, документы', oninput: () => draw() });
+  const fit = () => { area.style.height = 'auto'; area.style.height = `${Math.min(area.scrollHeight + 2, 160)}px`; };
+  const area = h('textarea', { class: 'field note-line', name: 'note', rows: 1, maxlength: 5000, placeholder: 'Подробности или ссылка', oninput: () => { draw(); fit(); } });
   area.value = v ?? '';
   draw();
+  requestAnimationFrame(fit);
   return h('label', {}, 'Описание', area, list);
 }
 function doneOnce(t) {
@@ -1564,7 +1577,8 @@ function openDialog(title, fields, { save, remove, after, extra, now, label = '�
     const v = now(f);
     after?.(v);
   } },
-    h('h2', { id: 'dialog-title' }, title), fields, err,
+    h('div', { class: 'dlg-head' }, h('h2', { id: 'dialog-title' }, title),
+      h('button', { class: 'x', type: 'button', 'aria-label': 'Закрыть', onclick: () => dlg.close() }, '×')), fields, err,
     extra ? h('div', {}, extra) : null,
     h('div', { class: 'row' }, del, h('span', { class: 'grow' }),
       h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Отмена'),
@@ -1590,24 +1604,23 @@ function functionField(current) {
     h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
 }
 let tempId = 0;
-const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, function_id: f.function_id || null, person: f.person || null, controller: f.controller || null, start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, stage_id: Number(f.stage_id) || null } : {}) });
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, ...('function_id' in f ? { function_id: f.function_id || null } : {}), person: f.person || null, ...('controller' in f ? { controller: f.controller || null } : {}), start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, stage_id: Number(f.stage_id) || null } : {}) });
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
     input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
     SHEETS ? noteField(v.note) : null,
-    h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
-      const stage = e.target.form.elements.stage_id, st = stage && stageById(Number(stage.value));
-      if (st && st.project_id !== Number(e.target.value)) stage.value = '';
-    } })),
-    SHEETS && (state.stages ?? []).length ? stageField(v.stage_id ?? '') : null,
-    functionField(v.function_id ?? ''),
-    h('div', { class: 'two' },
-      h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' })),
-      h('label', {}, 'Проверяет (если нужно)', select(peopleOptions(), v.controller ?? '', { name: 'controller' }))),
+    h('div', { class: SHEETS && (state.stages ?? []).length ? 'two' : '' },
+      h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
+        const stage = e.target.form.elements.stage_id, st = stage && stageById(Number(stage.value));
+        if (st && st.project_id !== Number(e.target.value)) stage.value = '';
+      } })),
+      SHEETS && (state.stages ?? []).length ? stageField(v.stage_id ?? '') : null),
+    h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' })),
     h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date' }), input('Конец', 'due', v.due, { type: 'date' })),
-    h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
-    SHEETS ? repeatField(v) : null,
+    h('div', { class: SHEETS ? 'two status-repeat' : '' },
+      h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
+      SHEETS ? repeatField(v) : null),
   ], t ? {
     now: SHEETS && (f => {
       const x = state.tasks.find(y => y.id === t.id);
