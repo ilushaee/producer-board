@@ -548,6 +548,39 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
 .quick .name { min-height: 30px; padding: 0 12px; font-size: 14px; }
 .name.proj-chip { display: inline-flex; align-items: center; gap: 7px; }
 .name.proj-chip::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+
+/* Шапка задач в одну строку: вид, «Кто», «Проект» — слева; число задач, помощник, «+ Задача» — справа. */
+.tasks-bar > .toolbar { margin: 0; }
+.picks { display: flex; gap: 8px; min-width: 0; }
+.btn.pick { gap: 6px; min-width: 0; max-width: 260px; padding: 0 14px; border-color: var(--line); background: none; }
+.btn.pick:hover { background: var(--glass); }
+.btn.pick .pick-label { flex: none; color: var(--ink-2); font-size: 13px; }
+.btn.pick b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+.btn.pick .caret { flex: none; font-size: 10px; color: var(--ink-2); }
+.btn.pick.set { border-color: var(--ink); background: var(--ink); color: #1b1726; }
+.btn.pick.set .pick-label, .btn.pick.set .caret { color: rgba(27, 23, 38, .6); }
+.n-tasks { color: var(--ink-2); font-size: 14px; white-space: nowrap; }
+.btn.icon-btn { width: 40px; padding: 0; }
+.btn.ghost { border-color: var(--line); background: none; color: var(--ink-2); font-size: 14px; }
+.btn.ghost:hover { background: var(--glass); color: var(--ink); }
+.btn.ghost.set { color: var(--ink); }
+.menu-item .dot.c-dot { background: var(--c); }
+@media (max-width: 700px) {
+  .tasks-bar > .toolbar { gap: 8px; }
+  .tasks-bar .switch { flex: 1 1 100%; }
+  .tasks-bar .switch button { flex: 1 1 0; justify-content: center; padding: 0 8px; }
+  .picks { flex: 1 1 100%; }
+  .picks .btn.pick { flex: 1 1 0; max-width: none; padding: 0 12px; }
+  .tasks-bar .n-tasks { margin-right: auto; }
+  .cal-head { min-height: 0; }
+}
+@media (max-width: 700px) {
+  /* На телефоне шапка месяца не прилипает и умещается: месяц, под ним кнопки в одну строку. */
+  .cal-head { position: static; margin: 0 0 10px; padding: 0; background: none; backdrop-filter: none; }
+  .cal-head .row { flex-wrap: nowrap; gap: 6px; width: 100%; }
+  .cal-head .row .btn { min-height: 36px; padding: 0 12px; font-size: 14px; }
+  .cal-head .row .btn.ghost { margin-right: auto; }
+}
 </style>
 </head>
 <body>
@@ -1227,16 +1260,13 @@ function planDialog(p, m, plan) {
   });
   show();
 }
-function quickFilters(filter, projectId) {
-  const group = (key, label, opts) => (opts.length ? h('div', { class: 'quick', role: 'group', 'aria-label': label }, h('span', { class: 'label' }, label),
-    h('div', { class: 'names' }, opts.map(([v, name, cls]) => h('button', { class: `name${cls ? ` ${cls}` : ''}`, type: 'button', 'aria-pressed': String(filter[key].has(v)), 'data-key': `q-${key}-${v}`,
-      onclick: () => { if (!filter[key].delete(v)) filter[key].add(v); render(); } }, name)))) : null);
-  return h('div', { class: 'quick-row' },
-    group('person', 'Ответственный', state.people.map(p => [p.name, p.name])),
-    projectId === null ? group('project', 'Проект', state.projects.map(p => [String(p.id), p.name, `proj-chip ${projectColor(p.id)}`])) : null);
+function pickFilter(filter, key, label, all, opts) {
+  const cur = filter[key].size === 1 ? [...filter[key]][0] : '';
+  const now = opts.find(o => o.value === cur);
+  return h('button', { class: `btn pick${cur ? ' set' : ''}`, type: 'button', 'data-key': `q-${key}`, 'aria-haspopup': 'menu', 'aria-label': `${label}: ${now?.label ?? all}`,
+    onclick: e => pickMenu(e.currentTarget, `f-${key}`, label, [{ value: '', label: all }, ...opts], cur, v => { filter[key].clear(); if (v) filter[key].add(v); render(); }) },
+    h('span', { class: 'pick-label' }, label), h('b', {}, now?.label ?? all), h('span', { class: 'caret', 'aria-hidden': 'true' }, '▾'));
 }
-const quickReset = filter => (filter.person.size || filter.project.size
-  ? h('button', { class: 'link', type: 'button', 'data-key': 'q-reset', onclick: () => { filter.person.clear(); filter.project.clear(); render(); } }, 'Показать всех') : null);
 const tasks = () => [
   hero({ title: 'Задачи', strip: [
     meta('Открыто', h('b', { class: 'big' }, String(state.tasks.filter(t => t.status !== 'done').length))),
@@ -1251,7 +1281,7 @@ function tasksBlock(list, filter, projectId) {
   const active = activeFilters(filter, projectId);
   const add = preset => taskDialog(null, { project_id: only, ...preset });
   const tab = (v, name, ico) => h('button', { type: 'button', 'aria-pressed': String(view === v), 'data-key': `view-${v}`, onclick: () => { view = v; store('view', v); render(); } }, icon(ico), name);
-  const count = h('b', { class: 'n-tasks' }), results = h('div', { class: 'results' });
+  const count = h('span', { class: 'n-tasks' }), results = h('div', { class: 'results' });
   const draw = () => {
     const shown = list.filter(t => matches(t, filter));
     const stagesView = view === 'stages' && SHEETS;
@@ -1261,13 +1291,15 @@ function tasksBlock(list, filter, projectId) {
     if (left) results.querySelector('.board')?.scrollTo({ left, behavior: 'instant' });
   };
   draw();
-  const bar = h('div', { class: 'tasks-bar' }, h('div', { class: 'toolbar' }, count, quickReset(filter),
-      h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Добавить задачу'),
-      state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant', onclick: () => assistantDialog(projectId) }, icon('spark'), 'Помощник') : null,
-      h('span', { class: 'grow' }),
-      h('label', { class: 'search' }, icon('search'), h('input', { type: 'search', placeholder: 'Найти задачу', 'aria-label': 'Найти задачу', value: filter.query, 'data-key': 'search', oninput: e => { filter.query = e.target.value; draw(); } })),
-      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null)),
-    quickFilters(filter, projectId));
+  const bar = h('div', { class: 'tasks-bar' }, h('div', { class: 'toolbar' },
+    h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null),
+    h('div', { class: 'picks' },
+      state.people.length ? pickFilter(filter, 'person', 'Кто', 'все', [...state.people.map(p => ({ value: p.name, label: p.name })), { value: 'none', label: 'Не назначено' }]) : null,
+      projectId === null ? pickFilter(filter, 'project', 'Проект', 'все', [...state.projects.map(p => ({ value: String(p.id), label: p.name, color: projectColor(p.id) })), { value: 'none', label: 'Без проекта' }]) : null),
+    h('span', { class: 'grow' }),
+    count,
+    state.me.ai ? h('button', { class: 'btn icon-btn', type: 'button', 'data-key': 'assistant', title: 'Помощник', 'aria-label': 'Помощник', onclick: () => assistantDialog(projectId) }, icon('spark')) : null,
+    h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Задача')));
   barSize ??= new ResizeObserver(([e]) => document.documentElement.style.setProperty('--tasks-bar', `${Math.round(e.target.offsetHeight)}px`));
   barSize.disconnect();
   barSize.observe(bar);
@@ -1291,11 +1323,10 @@ const matches = (t, f) =>
   (!f.person.size || f.person.has(t.person ?? 'none')) &&
   (!f.status.size || f.status.has(t.status) || (f.status.has('late') && isLate(t)));
 const shownColumns = f => [...(SHEETS && !f.status.size ? ['repeat'] : []), ...Object.keys(STATUS).filter(s => !f.status.size || f.status.has(s) || f.status.has('late'))];
-const focusSearch = () => $('[data-key=search]')?.focus();
 function filterSummary(filter, active) {
   return h('div', { class: 'chips summary' },
     active.map(([key, v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': 'true', 'aria-label': `Убрать отбор: ${name}`,
-      onclick: () => { filter[key].delete(v); render(); focusSearch(); } }, name, h('span', { 'aria-hidden': 'true' }, ' ×'))));
+      onclick: () => { filter[key].delete(v); render(); } }, name, h('span', { 'aria-hidden': 'true' }, ' ×'))));
 }
 let dragged = null; // { id, grabbed }: что тащат и за какой день полосы взяли
 const draggable = (t, grabbed = () => 0, kind = 'task') => ({
@@ -1462,9 +1493,9 @@ function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
   const doneCount = cfg.doneToggle ? list.filter(t => t.status === 'done').length : 0;
   if (cfg.doneToggle && hideDone) list = list.filter(t => t.status !== 'done');
-  const doneBtn = cfg.doneToggle ? h('button', { class: 'btn', type: 'button', 'data-key': 'cal-done',
+  const doneBtn = cfg.doneToggle ? h('button', { class: `btn ghost${hideDone ? ' set' : ''}`, type: 'button', 'data-key': 'cal-done',
     onclick: () => { hideDone = !hideDone; store('cal-hide-done', hideDone ? '1' : '0'); render(); } },
-    hideDone ? `Показать готовые${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
+    hideDone ? `Готовые скрыты${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
   const undated = cfg.undated ? list.filter(t => !range(t)) : [];
   return h('div', { class: 'calendar' },
@@ -1560,7 +1591,7 @@ function pickMenu(anchor, key, title, options, current, pick) {
   const choose = v => { close(); if (v !== current) pick(v); };
   const items = options.map(o => h('button', { class: `menu-item${o.dot ? ` s-${o.dot}` : ''}${o.value === current ? ' on' : ''}`, type: 'button', role: 'menuitemradio',
     'aria-checked': String(o.value === current), onclick: e => { e.stopPropagation(); choose(o.value); } },
-    o.dot ? h('span', { class: 'dot', 'aria-hidden': 'true' }) : null, h('span', { class: 'menu-label' }, o.label, o.hint ? h('span', { class: 'hint' }, o.hint) : null),
+    o.dot || o.color ? h('span', { class: `dot${o.color ? ` c-dot ${o.color}` : ''}`, 'aria-hidden': 'true' }) : null, h('span', { class: 'menu-label' }, o.label, o.hint ? h('span', { class: 'hint' }, o.hint) : null),
     o.value === current ? h('span', { class: 'tick', 'aria-hidden': 'true' }, '✓') : null));
   const menu = h('div', { class: 'status-menu', role: 'menu', 'data-for': key, 'aria-label': title }, items);
   document.body.append(menu);
