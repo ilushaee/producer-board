@@ -530,6 +530,9 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
 .bar-name { min-height: calc(2 * 1.25em); }
 .bar-foot { margin-top: auto; }
 .loose .bar-name { min-height: 0; }
+/* Воздух между названием и кнопками — как между кнопками и проектом. */
+.bar-name + .bar-meta { margin-top: 4px; }
+.bar-foot { padding-top: 7px; }
 </style>
 </head>
 <body>
