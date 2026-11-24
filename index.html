@@ -533,18 +533,24 @@ function range(t) {
   const start = t.start ?? t.due;
   return start ? { start, end: t.due ?? t.start } : null;
 }
-function layoutWeek(days, tasks) {
+function layoutWeek(days, tasks, sink = () => false) {
   const [from, to] = [days[0], days[6]];
   const items = tasks.map(t => ({ t, r: range(t) })).filter(x => x.r && x.r.start <= to && x.r.end >= from)
     .sort((a, b) => a.r.start.localeCompare(b.r.start) || b.r.end.localeCompare(a.r.end) || a.t.id - b.t.id);
-  const lanes = [];
-  return items.map(({ t, r }) => {
-    const a = Math.max(0, diffDays(from, r.start)), b = Math.min(6, diffDays(from, r.end));
-    let lane = lanes.findIndex(last => last < a);
-    if (lane < 0) lane = lanes.length;
-    lanes[lane] = b;
-    return { task: t, col: a, span: b - a + 1, lane, first: r.start >= from, last: r.end <= to };
-  });
+  const out = [];
+  let floor = 0;
+  for (const group of [items.filter(x => !sink(x.t)), items.filter(x => sink(x.t))]) {
+    const lanes = [];
+    for (const { t, r } of group) {
+      const a = Math.max(0, diffDays(from, r.start)), b = Math.min(6, diffDays(from, r.end));
+      let lane = lanes.findIndex(last => last < a);
+      if (lane < 0) lane = lanes.length;
+      lanes[lane] = b;
+      out.push({ task: t, col: a, span: b - a + 1, lane: floor + lane, first: r.start >= from, last: r.end <= to });
+    }
+    floor += lanes.length;
+  }
+  return out;
 }
 function moveTo(t, day, grabbed = 0) {
   const r = range(t);
@@ -1320,7 +1326,8 @@ function moveCard(id, status, before) {
   });
 }
 const TASK_CAL = {
-  kind: 'task', undated: true, addLabel: 'задачу',
+  kind: 'task', undated: true, addLabel: 'задачу', doneToggle: true,
+  sink: t => t.status === 'done',
   name: t => t.title,
   meta: t => [statusChip(t), personChip(t), stageChip(t), t.repeat && '🔁', t.note && '📎'].filter(Boolean),
   foot: (t, showProject) => (showProject && t.project_id ? projectName(t.project_id) : null),
@@ -1330,13 +1337,19 @@ const TASK_CAL = {
   open: t => taskDialog(t),
   add: (d, end = d) => taskDialog(null, { project_id: pageProject(), start: d, due: end }),
 };
+let hideDone = load('cal-hide-done') === '1';
 function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
+  const doneCount = cfg.doneToggle ? list.filter(t => t.status === 'done').length : 0;
+  if (cfg.doneToggle && hideDone) list = list.filter(t => t.status !== 'done');
+  const doneBtn = cfg.doneToggle ? h('button', { class: `btn${hideDone ? '' : ' on'}`, type: 'button', 'data-key': 'cal-done', 'aria-pressed': String(!hideDone),
+    onclick: () => { hideDone = !hideDone; store('cal-hide-done', hideDone ? '1' : '0'); render(); } },
+    hideDone ? `Показать готовые${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
   const undated = cfg.undated ? list.filter(t => !range(t)) : [];
   return h('div', { class: 'calendar' },
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, monthTitle(calMonth)),
-      h('div', { class: 'row' }, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
+      h('div', { class: 'row' }, doneBtn, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
         go('cal-now', 'Текущий месяц', thisMonth(), 'Сегодня'), go('cal-next', 'Следующий месяц', addMonths(calMonth, 1), '→'))),
     h('div', { class: 'cal-scroll' }, h('div', { class: 'cal-grid' },
       h('div', { class: 'cal-days', 'aria-hidden': 'true' }, ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => h('div', {}, d))),
@@ -1345,7 +1358,7 @@ function calendar(list, showProject, cfg = TASK_CAL) {
       h('div', { class: 'chips' }, undated.map(t => bar(t, showProject, 'loose', undefined, cfg)))) : null);
 }
 function week(days, list, showProject, cfg) {
-  const segments = layoutWeek(days, list);
+  const segments = layoutWeek(days, list, cfg.sink ?? (() => false));
   const lanes = Math.max(0, ...segments.map(s => s.lane + 1));
   const dayAt = e => {
     const r = el.getBoundingClientRect();
