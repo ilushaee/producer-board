@@ -635,6 +635,10 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
   .kcard .proj { max-width: 66%; padding: 2px 7px; font-size: 11px; }
   .kcard .when { font-size: 12px; }
 }
+
+/* Окно задачи: название и описание — по две строки. */
+dialog label textarea.title-area { min-height: 0; height: calc(2 * 1.35em + 22px); resize: none; line-height: 1.35; }
+dialog label textarea.note-line { min-height: calc(2 * 1.35em + 22px); line-height: 1.35; }
 </style>
 </head>
 <body>
@@ -1484,8 +1488,8 @@ const shortUrl = u => { try { const x = new URL(u); const rest = (x.pathname + x
 function noteField(v) {
   const list = h('div', { class: 'links' });
   const draw = () => list.replaceChildren(...linksIn(area.value).map(u => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', {}, shortUrl(u)))));
-  const fit = () => { area.style.height = 'auto'; area.style.height = `${Math.min(area.scrollHeight + 2, 160)}px`; };
-  const area = h('textarea', { class: 'field note-line', name: 'note', rows: 1, maxlength: 5000, placeholder: 'Подробности или ссылка', oninput: () => { draw(); fit(); } });
+  const fit = () => { area.style.height = ''; area.style.height = `${Math.min(Math.max(area.scrollHeight + 2, area.offsetHeight), 180)}px`; };
+  const area = h('textarea', { class: 'field note-line', name: 'note', rows: 2, maxlength: 5000, placeholder: 'Подробности или ссылка', oninput: () => { draw(); fit(); } });
   area.value = v ?? '';
   draw();
   requestAnimationFrame(fit);
@@ -1870,10 +1874,17 @@ function functionField(current) {
 }
 let tempId = 0;
 const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, ...('function_id' in f ? { function_id: f.function_id || null } : {}), person: f.person || null, ...('controller' in f ? { controller: f.controller || null } : {}), start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, ...('stage_id' in f ? { stage_id: Number(f.stage_id) || null } : {}) } : {}) });
+function titleField(v) {
+  const area = h('textarea', { class: 'field title-area', name: 'title', rows: 2, required: true, maxlength: 200, autocomplete: 'off',
+    oninput: e => { if (e.target.value.includes('\n')) e.target.value = e.target.value.replace(/\s*\n\s*/g, ' '); },
+    onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); } } });
+  area.value = v ?? '';
+  return h('label', {}, 'Что сделать', area);
+}
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
-    input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
+    titleField(v.title),
     SHEETS ? noteField(v.note) : null,
     ...(() => {
       const projectField = h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
