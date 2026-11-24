@@ -163,7 +163,7 @@ option, optgroup { background: var(--solid); color: var(--ink); }
 .bar { position: relative; z-index: 1; display: flex; background: var(--c); color: #17121f; align-items: flex-start; min-width: 0; min-height: 26px; margin: 1px 4px 4px; padding: 5px 10px 6px; border-radius: 8px; font-size: 13px; font-weight: 500; line-height: 1.25; cursor: grab; user-select: none; }
 .bar-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .bar-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-weight: 600; }
-.bar-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11.5px; opacity: .72; }
+.bar-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11.5px; color: rgba(23, 18, 31, .75); }
 .loose .bar-name { -webkit-line-clamp: 1; }
 /* Края полосы: тянешь — меняются даты. */
 .grip { position: absolute; top: 0; bottom: 0; z-index: 2; width: 10px; cursor: ew-resize; touch-action: none; }
@@ -455,6 +455,20 @@ ol.steps a { color: var(--ink); }
   .stage-list.compact .stage-row > :last-child { grid-column: 2 / -1; }
   .tl-grid { min-width: 680px; }
 }
+
+/* Статус на полосе календаря и выпадающий список статусов. */
+.bar-status { display: inline-flex; align-items: center; gap: 3px; margin: -1px 0; padding: 0 6px; border: 0; border-radius: 6px; background: rgba(23, 18, 31, .14); color: #17121f; font: inherit; font-weight: 700; cursor: pointer; }
+.bar-status:hover, .bar-status:focus-visible { background: rgba(23, 18, 31, .26); }
+.bar-status .caret { font-size: 9px; opacity: .8; }
+.status-menu { position: fixed; z-index: 60; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: #1d1828; box-shadow: 0 14px 40px rgba(0, 0, 0, .5); }
+.menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.menu-item:hover, .menu-item:focus-visible { background: var(--glass-2); outline: none; }
+.menu-item.on { font-weight: 700; }
+.menu-item .dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa0b4; }
+.menu-item.s-doing .dot { background: #f5b93a; }
+.menu-item.s-review .dot { background: #7aa7ff; }
+.menu-item.s-done .dot { background: #4fd18b; }
+.menu-item .tick { margin-left: auto; opacity: .8; }
 </style>
 </head>
 <body>
@@ -1278,8 +1292,8 @@ function moveCard(id, status, before) {
 const TASK_CAL = {
   kind: 'task', undated: true, addLabel: 'задачу',
   name: t => t.title,
-  meta: (t, showProject) => [showProject && t.project_id && projectName(t.project_id), t.person ?? 'без ответственного',
-    t.status !== 'todo' && STATUS[t.status], t.repeat && '🔁', t.note && '📎'].filter(Boolean).join(' · '),
+  meta: (t, showProject) => [statusChip(t), showProject && t.project_id && projectName(t.project_id), t.person ?? 'без ответственного',
+    t.repeat && '🔁', t.note && '📎'].filter(Boolean),
   info: (t, name) => [t.project_id && projectName(t.project_id), name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status],
     t.stage_id && stageById(t.stage_id) && `этап «${stageById(t.stage_id).name}»`, isLate(t) && 'просрочено'].filter(Boolean).join(', '),
   cls: t => `${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''}`,
@@ -1345,8 +1359,69 @@ function bar(t, showProject, cls, grabbed, cfg = TASK_CAL, edges = null) {
   return h('div', { class: `bar ${cfg.cls(t, showProject)} ${cls}`, title: full, 'aria-label': full, 'data-key': `${cfg.kind[0]}${t.id}`,
     ...(t.saving ? {} : { ...opens(() => cfg.open(t)), ...(move ? draggable(t, grabbed, cfg.kind) : {}) }) },
     grips && edges.l ? grip(t, cfg, 'start') : null,
-    h('span', { class: 'bar-text' }, h('span', { class: 'bar-name' }, name), meta ? h('span', { class: 'bar-meta' }, meta) : null),
+    h('span', { class: 'bar-text' }, h('span', { class: 'bar-name' }, name),
+      meta?.length ? h('span', { class: 'bar-meta' }, Array.isArray(meta) ? meta.flatMap((x, i) => (i ? [' · ', x] : [x])) : meta) : null),
     grips && edges.r ? grip(t, cfg, 'due') : null);
+}
+function statusChip(t) {
+  return h('button', { class: `bar-status s-${t.status}`, type: 'button', 'aria-haspopup': 'menu', 'aria-label': `Статус: ${STATUS[t.status]}. Изменить`,
+    disabled: !!t.saving, draggable: 'false',
+    onpointerdown: e => e.stopPropagation(),
+    onkeydown: e => e.stopPropagation(),
+    onclick: e => { e.stopPropagation(); statusMenu(t, e.currentTarget); } }, STATUS[t.status], h('span', { class: 'caret', 'aria-hidden': 'true' }, '▾'));
+}
+function closeMenu() { document.querySelector('.status-menu')?.dispatchEvent(new Event('close')); }
+function statusMenu(t, anchor) {
+  const was = document.querySelector('.status-menu');
+  closeMenu();
+  if (was?.dataset.for === String(t.id)) return; // второе нажатие закрывает
+  const pick = status => {
+    close();
+    if (status === t.status) return;
+    if (t.repeat && status === 'done') { doneOnce(t); return; }
+    setStatus(t, status);
+  };
+  const items = Object.entries(STATUS).map(([k, label]) => h('button', { class: `menu-item s-${k}${k === t.status ? ' on' : ''}`, type: 'button', role: 'menuitemradio',
+    'aria-checked': String(k === t.status), onclick: e => { e.stopPropagation(); pick(k); } },
+    h('span', { class: 'dot', 'aria-hidden': 'true' }), t.repeat && k === 'done' ? 'Сделано сегодня' : label, k === t.status ? h('span', { class: 'tick', 'aria-hidden': 'true' }, '✓') : null));
+  const menu = h('div', { class: 'status-menu', role: 'menu', 'data-for': String(t.id), 'aria-label': `Статус задачи «${t.title}»` }, items);
+  document.body.append(menu);
+  const r = anchor.getBoundingClientRect(), m = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.width - 8))}px`;
+  menu.style.top = `${r.bottom + 6 + m.height > innerHeight ? r.top - m.height - 6 : r.bottom + 6}px`;
+  const outside = e => { if (!menu.contains(e.target) && e.target !== anchor) close(); };
+  const keys = e => {
+    const list = [...menu.querySelectorAll('.menu-item')], i = list.indexOf(document.activeElement);
+    if (e.key === 'Escape') { close(); anchor.focus(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus(); }
+  };
+  function close() {
+    menu.remove();
+    removeEventListener('pointerdown', outside, true);
+    removeEventListener('keydown', keys, true);
+    removeEventListener('scroll', close, true);
+    removeEventListener('resize', close);
+  }
+  menu.addEventListener('close', close);
+  addEventListener('pointerdown', outside, true);
+  addEventListener('keydown', keys, true);
+  addEventListener('scroll', close, true);
+  addEventListener('resize', close);
+  (menu.querySelector('.on') ?? items[0]).focus({ preventScroll: true });
+}
+function setStatus(t, status) {
+  const text = `«${t.title}»: ${STATUS[status]}`;
+  if (SHEETS) {
+    background(() => { t.status = status; }, () => api('PATCH', `/api/tasks/${t.id}`, { status }));
+    toast(text);
+    return;
+  }
+  t.status = status;
+  render();
+  attempt(async () => {
+    try { await api('PATCH', `/api/tasks/${t.id}`, { status }); } finally { await reload(); }
+    toast(text);
+  });
 }
 function sweep(e, from, change, done) {
   if (e.button !== 0) return;
