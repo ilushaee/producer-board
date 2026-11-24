@@ -539,6 +539,15 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
   main:has(.tasks-bar) .cal-head { top: var(--tasks-bar, 0px); border-radius: 0; }
   main:has(.tasks-bar) .cal-days { top: calc(var(--tasks-bar, 0px) + 64px); }
 }
+/* Быстрые фильтры под кнопками: люди и проекты. */
+.tasks-bar > .toolbar { margin: 0 0 10px; }
+.tasks-bar { margin-block: 18px 14px; }
+.quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin: 0 2px; }
+.quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.quick .label { color: var(--ink-2); font-size: 13px; }
+.quick .name { min-height: 30px; padding: 0 12px; font-size: 14px; }
+.name.proj-chip { display: inline-flex; align-items: center; gap: 7px; }
+.name.proj-chip::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
 </style>
 </head>
 <body>
@@ -628,7 +637,6 @@ let state = null;
 let month = null;    // месяц цифр на главной и в проекте, ГГГГ-ММ
 let calMonth = null; // месяц календаря задач
 let view = ['calendar', 'stages'].includes(load('view')) ? load('view') : 'board';
-let filterOpen = false;
 const newFilter = () => ({ project: new Set(), person: new Set(), status: new Set(), query: '' });
 const filters = { tasks: newFilter(), project: newFilter() };
 let filterOwner = null; // для какого проекта включён фильтр на странице проекта
@@ -853,7 +861,7 @@ function project(id) {
       action: state.me.owner ? [h('button', { class: 'btn', type: 'button', 'data-key': 'edit-project', onclick: () => projectDialog(p) }, 'Изменить'),
         REMOTE ? h('button', { class: 'btn', type: 'button', 'data-key': 'share-project', onclick: () => shareDialogOwner(p) }, p.share ? 'Ссылка ✓' : 'Поделиться') : null] : null,
       strip: [state.me.money ? meta('Месяц', picker) : null, state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
-        meta('Просрочено', lateLink(list.filter(isLate).length, 'project')), projectTab === 'tasks' ? members(filters.project) : null],
+        meta('Просрочено', lateLink(list.filter(isLate).length, 'project'))],
     }),
     tabs.length > 1 ? h('div', { class: 'toolbar tabs' }, h('div', { class: 'switch', role: 'group', 'aria-label': 'Раздел проекта' }, tabs.map(([k, name]) =>
       h('button', { type: 'button', 'aria-pressed': String(projectTab === k), 'data-key': `ptab-${k}`, onclick: () => { projectTab = k; render(); } }, name)))) : null,
@@ -1219,16 +1227,20 @@ function planDialog(p, m, plan) {
   });
   show();
 }
-function members(filter) {
-  if (!state.people.length) return null;
-  return h('div', { class: 'members' }, h('span', { class: 'label' }, 'Ответственный'), h('div', { class: 'names' }, state.people.map(p =>
-    h('button', { class: 'name', type: 'button', 'aria-pressed': String(filter.person.has(p.name)), 'data-key': `who-${p.id}`,
-      onclick: () => { if (!filter.person.delete(p.name)) filter.person.add(p.name); render(); } }, p.name))));
+function quickFilters(filter, projectId) {
+  const group = (key, label, opts) => (opts.length ? h('div', { class: 'quick', role: 'group', 'aria-label': label }, h('span', { class: 'label' }, label),
+    h('div', { class: 'names' }, opts.map(([v, name, cls]) => h('button', { class: `name${cls ? ` ${cls}` : ''}`, type: 'button', 'aria-pressed': String(filter[key].has(v)), 'data-key': `q-${key}-${v}`,
+      onclick: () => { if (!filter[key].delete(v)) filter[key].add(v); render(); } }, name)))) : null);
+  return h('div', { class: 'quick-row' },
+    group('person', 'Ответственный', state.people.map(p => [p.name, p.name])),
+    projectId === null ? group('project', 'Проект', state.projects.map(p => [String(p.id), p.name, `proj-chip ${projectColor(p.id)}`])) : null);
 }
+const quickReset = filter => (filter.person.size || filter.project.size
+  ? h('button', { class: 'link', type: 'button', 'data-key': 'q-reset', onclick: () => { filter.person.clear(); filter.project.clear(); render(); } }, 'Показать всех') : null);
 const tasks = () => [
   hero({ title: 'Задачи', strip: [
     meta('Открыто', h('b', { class: 'big' }, String(state.tasks.filter(t => t.status !== 'done').length))),
-    meta('Просрочено', lateLink(state.tasks.filter(isLate).length, 'tasks')), members(filters.tasks)] }),
+    meta('Просрочено', lateLink(state.tasks.filter(isLate).length, 'tasks'))] }),
   ...tasksBlock(state.tasks, filters.tasks, null),
 ];
 
@@ -1249,20 +1261,19 @@ function tasksBlock(list, filter, projectId) {
     if (left) results.querySelector('.board')?.scrollTo({ left, behavior: 'instant' });
   };
   draw();
-  const bar = h('div', { class: 'toolbar tasks-bar' }, count,
+  const bar = h('div', { class: 'tasks-bar' }, h('div', { class: 'toolbar' }, count, quickReset(filter),
       h('button', { class: 'btn main', type: 'button', 'data-key': 'add', onclick: () => add() }, icon('plus'), 'Добавить задачу'),
       state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant', onclick: () => assistantDialog(projectId) }, icon('spark'), 'Помощник') : null,
       h('span', { class: 'grow' }),
       h('label', { class: 'search' }, icon('search'), h('input', { type: 'search', placeholder: 'Найти задачу', 'aria-label': 'Найти задачу', value: filter.query, 'data-key': 'search', oninput: e => { filter.query = e.target.value; draw(); } })),
-      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null),
-      h('button', { class: 'btn', type: 'button', 'aria-expanded': String(filterOpen), 'data-key': 'filter', onclick: () => { filterOpen = !filterOpen; render(); } },
-        icon('filter'), active.length ? `Фильтр: ${active.length}` : 'Фильтр'));
+      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null)),
+    quickFilters(filter, projectId));
   barSize ??= new ResizeObserver(([e]) => document.documentElement.style.setProperty('--tasks-bar', `${Math.round(e.target.offsetHeight)}px`));
   barSize.disconnect();
   barSize.observe(bar);
   return [
     bar,
-    filterOpen ? filterPanel(filter, projectId, active) : active.length ? filterSummary(filter, active) : null,
+    active.some(([k]) => k === 'status') ? filterSummary(filter, active.filter(([k]) => k === 'status')) : null,
     results,
   ].filter(Boolean);
 }
@@ -1280,21 +1291,11 @@ const matches = (t, f) =>
   (!f.person.size || f.person.has(t.person ?? 'none')) &&
   (!f.status.size || f.status.has(t.status) || (f.status.has('late') && isLate(t)));
 const shownColumns = f => [...(SHEETS && !f.status.size ? ['repeat'] : []), ...Object.keys(STATUS).filter(s => !f.status.size || f.status.has(s) || f.status.has('late'))];
-const focusFilter = () => $('[data-key=filter]').focus();
-const resetButton = filter => h('button', { class: 'link', type: 'button', onclick: () => { for (const k of ['project', 'person', 'status']) filter[k].clear(); render(); focusFilter(); } }, 'Сбросить');
-function filterPanel(filter, projectId, active) {
-  return h('div', { class: 'panel' },
-    filterGroups(projectId).map(([key, label, opts]) => h('div', { class: 'fgroup', role: 'group', 'aria-label': label },
-      h('span', { class: 'label' }, label),
-      h('div', { class: 'chips' }, opts.map(([v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(filter[key].has(v)), 'data-key': `f-${key}-${v}`,
-        onclick: () => { if (!filter[key].delete(v)) filter[key].add(v); render(); } }, name))))),
-    active.length ? resetButton(filter) : null);
-}
+const focusSearch = () => $('[data-key=search]')?.focus();
 function filterSummary(filter, active) {
   return h('div', { class: 'chips summary' },
-    active.map(([key, v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': 'true', 'aria-label': `Убрать фильтр: ${name}`,
-      onclick: () => { filter[key].delete(v); render(); focusFilter(); } }, name, h('span', { 'aria-hidden': 'true' }, ' ×'))),
-    resetButton(filter));
+    active.map(([key, v, name]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': 'true', 'aria-label': `Убрать отбор: ${name}`,
+      onclick: () => { filter[key].delete(v); render(); focusSearch(); } }, name, h('span', { 'aria-hidden': 'true' }, ' ×'))));
 }
 let dragged = null; // { id, grabbed }: что тащат и за какой день полосы взяли
 const draggable = (t, grabbed = () => 0, kind = 'task') => ({
@@ -1461,7 +1462,7 @@ function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
   const doneCount = cfg.doneToggle ? list.filter(t => t.status === 'done').length : 0;
   if (cfg.doneToggle && hideDone) list = list.filter(t => t.status !== 'done');
-  const doneBtn = cfg.doneToggle ? h('button', { class: 'btn', type: 'button', 'data-key': 'cal-done', 'aria-pressed': String(!hideDone),
+  const doneBtn = cfg.doneToggle ? h('button', { class: 'btn', type: 'button', 'data-key': 'cal-done',
     onclick: () => { hideDone = !hideDone; store('cal-hide-done', hideDone ? '1' : '0'); render(); } },
     hideDone ? `Показать готовые${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
