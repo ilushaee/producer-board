@@ -497,6 +497,28 @@ dialog form { gap: 12px; }
 .bar-meta.chips-row { gap: 4px 6px; }
 .bar-chip { padding: 1px 7px; }
 .bar-foot { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-top: 5px; border-top: 1px solid rgba(23, 18, 31, .15); font-size: 11.5px; font-weight: 600; color: rgba(23, 18, 31, .7); }
+
+/* Лента этапов: полоса с информацией, её можно двигать и растягивать. */
+.tl-track { min-height: 58px; }
+.tl-bar { height: auto; min-height: 44px; padding: 5px 10px 7px; align-items: center; overflow: hidden; }
+.tl-bar.movable { cursor: grab; touch-action: pan-x pan-y; }
+.tl-bar-text { display: grid; gap: 1px; min-width: 0; }
+.tl-bar-text b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 700; }
+.tl-bar-text span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11.5px; font-weight: 500; color: rgba(23, 18, 31, .75); }
+.tl-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: rgba(23, 18, 31, .45); }
+.tl-bar .grip { z-index: 3; }
+.tl-bar:hover .grip::after { opacity: 1; }
+.tl-label .stage-state-text { font-size: 12px; }
+.tl-group { background: rgba(255, 255, 255, .035); }
+.tl-group .tl-label { background: var(--solid); }
+.tl-group .tl-label b { font-size: 14px; font-weight: 700; }
+.tl-group-cell { min-width: 0; }
+.tl-group-info { position: sticky; left: 200px; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; max-width: min(100%, 80vw); padding: 8px 14px; font-size: 13px; }
+body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none; }
+@media (max-width: 700px) { .tl-group-info { left: 130px; } }
+.tl-scroll { cursor: grab; scroll-behavior: auto; }
+.tl-scroll.panning { cursor: grabbing; user-select: none; }
+.tl-label { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -585,7 +607,7 @@ const HINT = {
 let state = null;
 let month = null;    // месяц цифр на главной и в проекте, ГГГГ-ММ
 let calMonth = null; // месяц календаря задач
-let view = load('view') === 'calendar' ? 'calendar' : 'board';
+let view = ['calendar', 'stages'].includes(load('view')) ? load('view') : 'board';
 let filterOpen = false;
 const newFilter = () => ({ project: new Set(), person: new Set(), status: new Set(), query: '' });
 const filters = { tasks: newFilter(), project: newFilter() };
@@ -773,7 +795,6 @@ function home() {
     state.projects.length
       ? h('div', { class: 'cards' }, state.projects.map((p, i) => projectCard(p, sums[i])))
       : h('div', { class: 'blank' }, 'Проектов пока нет. Добавь первый.'),
-    (state.stages ?? []).length ? [h('div', { class: 'toolbar' }, h('h2', { class: 'sub' }, 'Этапы проектов')), stageTimeline(state.projects.flatMap(p => projectStages(p.id)), true)] : null,
   ];
 }
 function lateLink(n, owner) {
@@ -944,6 +965,23 @@ function stagesBlock(p) {
       : h('div', { class: 'blank' }, 'Этап — крупный кусок проекта с датами, названный действием: «Делаем воронку продаж», «Проводим предобучение», «Ведём поток». Добавь вручную или надиктуй помощнику.'),
   ];
 }
+function pan(e) {
+  const sc = e.currentTarget;
+  if (e.button !== 0 || e.pointerType === 'touch' || e.target.closest('.tl-bar, .tl-label, button')) return;
+  const x0 = e.clientX, left0 = sc.scrollLeft;
+  e.preventDefault();
+  sc.classList.add('panning');
+  const move = ev => { sc.scrollLeft = left0 - (ev.clientX - x0); };
+  const stop = () => { sc.classList.remove('panning'); removeEventListener('pointermove', move); removeEventListener('pointerup', stop); removeEventListener('pointercancel', stop); };
+  addEventListener('pointermove', move); addEventListener('pointerup', stop); addEventListener('pointercancel', stop);
+}
+const overviewStages = (projectId, filter) => (projectId ? [projectId] : state.projects.map(p => p.id).filter(id => !filter.project.size || filter.project.has(String(id))))
+  .flatMap(id => projectStages(id));
+function stagesOverview(projectId, filter) {
+  const list = overviewStages(projectId, filter);
+  if (!list.length) return h('div', { class: 'blank' }, 'Этапов пока нет. Добавь их в проекте во вкладке «Этапы» или надиктуй помощнику.');
+  return stageTimeline(list, !projectId);
+}
 let stageQuarter = null;
 const quarterOf = iso => `${iso.slice(0, 4)}-${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`;
 const shiftQuarter = (q, k) => { let [y, n] = q.split('-').map(Number); n += k; while (n > 4) { n -= 4; y++; } while (n < 1) { n += 4; y--; } return `${y}-${n}`; };
@@ -962,15 +1000,69 @@ function stageTimeline(list, showProject) {
   const marks = [...mondays.map(d => h('div', { class: 'tl-week-line', style: `left:${pct(d)}` })),
     ...months.slice(1).map(([ym]) => h('div', { class: 'tl-month-line', style: `left:${pct(`${ym}-01`)}` })),
     today() >= from && today() <= to ? h('div', { class: 'tl-today', style: `left:calc(${pct(today())} + ${50 / total}%)` }) : null];
+  const place = dates => { const a = Math.max(1, col(dates.start)), b = Math.min(total, col(dates.due)); return `${a} / ${b + 1}`; };
   const row = st => {
-    const a = Math.max(1, col(st.start)), b = Math.min(total, col(st.due));
-    const label = showProject ? [h('span', { class: `tl-proj ${projectColor(st.project_id)}` }, projectName(st.project_id)), h('b', {}, st.name)] : [h('b', {}, st.name)];
+    const tasks = state.tasks.filter(t => t.stage_id === st.id), done = tasks.filter(t => t.status === 'done').length;
+    const [cls, stateText] = stageState(st);
+    const info = [datesText(st), tasks.length ? `${done}/${tasks.length} задач` : 'задач нет', stateText].join(' · ');
+    const edit = state.me.owner;
+    let bar, track;
+    const drag = (e, mode) => {
+      bar.dataset.ptr = e.pointerType;
+      if (!edit || e.button !== 0 || e.pointerType === 'touch') return;
+      e.stopPropagation();
+      e.preventDefault();
+      const x0 = e.clientX, day = track.getBoundingClientRect().width / total;
+      let dates = { start: st.start, due: st.due }, moved = false;
+      const tip = h('div', { class: 'sweep-tip', role: 'status' });
+      try { bar.setPointerCapture(e.pointerId); } catch {}
+      const move = ev => {
+        if (!moved && Math.abs(ev.clientX - x0) < 4) return;
+        if (!moved) { moved = true; document.body.append(tip); document.body.classList.add(mode === 'move' ? 'grabbing' : 'sweeping'); }
+        const k = Math.round((ev.clientX - x0) / day);
+        dates = mode === 'move' ? { start: addDays(st.start, k), due: addDays(st.due, k) }
+          : mode === 'start' ? { start: [addDays(st.start, k), st.due].sort()[0], due: st.due }
+            : { start: st.start, due: [addDays(st.due, k), st.start].sort()[1] };
+        bar.style.gridColumn = place(dates);
+        tip.textContent = `${st.name}: ${datesText(dates)}`;
+        tip.style.left = `${ev.clientX + 14}px`; tip.style.top = `${ev.clientY + 16}px`;
+      };
+      const stop = ev => {
+        removeEventListener('pointermove', move); removeEventListener('pointerup', stop); removeEventListener('pointercancel', stop);
+        tip.remove();
+        document.body.classList.remove('grabbing', 'sweeping');
+        if (!moved) { if (ev.type === 'pointerup') stageDialog(st); return; }
+        if (ev.type === 'pointerup' && (dates.start !== st.start || dates.due !== st.due)) setDates('stage', st.id, dates);
+        else bar.style.gridColumn = place(st);
+      };
+      addEventListener('pointermove', move); addEventListener('pointerup', stop); addEventListener('pointercancel', stop);
+    };
+    const grip = side => (edit ? h('span', { class: `grip ${side === 'start' ? 'l' : 'r'}`, 'aria-hidden': 'true', title: side === 'start' ? 'Потяни, чтобы сдвинуть начало' : 'Потяни, чтобы сдвинуть конец',
+      onpointerdown: e => drag(e, side) }) : null);
+    bar = h('div', { class: `tl-bar ${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}${st.start < from ? ' cut-l' : ''}${st.due > to ? ' cut-r' : ''}${edit ? ' movable' : ''}`,
+      style: `grid-column:${place(st)}`, title: `${st.name}: ${info}`, role: 'button', tabindex: '0', 'aria-label': `${st.name}: ${info}`,
+      onpointerdown: e => drag(e, 'move'),
+      onclick: e => { if (!edit || e.detail === 0 || bar.dataset.ptr === 'touch') stageDialog(st); }, // мышью этап открывает drag, пальцем и клавиатурой — click
+      onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); stageDialog(st); } } },
+      grip('start'),
+      h('div', { class: 'tl-bar-text' }, h('b', {}, st.name), h('span', {}, info)),
+      tasks.length ? h('i', { class: 'tl-progress', style: `width:${Math.round(done / tasks.length * 100)}%`, 'aria-hidden': 'true' }) : null,
+      grip('due'));
+    track = h('div', { class: 'tl-track', style: `grid-template-columns:repeat(${total},minmax(0,1fr))` }, marks.map(m => m?.cloneNode(true)), bar);
     return h('div', { class: 'tl-row' },
-      h('div', { class: 'tl-label', ...opens(() => stageDialog(st)) }, label),
-      h('div', { class: 'tl-track', style: `grid-template-columns:repeat(${total},minmax(0,1fr))` }, marks.map(m => m?.cloneNode(true)),
-        h('div', { class: `tl-bar ${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}${st.start < from ? ' cut-l' : ''}${st.due > to ? ' cut-r' : ''}`,
-          style: `grid-column:${a} / ${b + 1}`, title: `${st.name}, ${datesText(st)}, ${stageState(st)[1]}`, ...opens(() => stageDialog(st)) }, h('span', {}, datesText(st)))));
+      h('div', { class: 'tl-label', ...opens(() => stageDialog(st)) }, h('b', {}, st.name), h('span', { class: `hint stage-state-text ${cls}` }, tasks.length ? `${done}/${tasks.length} задач` : 'задач нет')),
+      track);
   };
+  const group = pid => {
+    const all = projectStages(pid), tasks = state.tasks.filter(t => t.stage_id && all.some(x => x.id === t.stage_id)), done = tasks.filter(t => t.status === 'done').length;
+    return h('div', { class: 'tl-row tl-group' },
+      h('div', { class: 'tl-label' }, h('b', { class: `tl-proj ${projectColor(pid)}` }, projectName(pid))),
+      h('div', { class: 'tl-group-cell' }, h('div', { class: 'tl-group-info' }, h('span', {}, stageNow(pid) ? `🏁 ${stageNow(pid)}` : 'Все этапы позади'),
+        tasks.length ? h('span', { class: 'hint' }, `задач в этапах сделано ${done} из ${tasks.length}`) : null)));
+  };
+  const rows = showProject
+    ? state.projects.map(p => p.id).filter(pid => shown.some(st => st.project_id === pid)).flatMap(pid => [group(pid), ...shown.filter(st => st.project_id === pid).map(row)])
+    : shown.map(row);
   setTimeout(() => {
     const sc = wrap.querySelector('.tl-scroll'), mark = sc?.querySelector('.tl-today') ?? sc?.querySelector('.tl-bar');
     if (!sc || !mark || sc.scrollWidth <= sc.clientWidth) return;
@@ -980,13 +1072,13 @@ function stageTimeline(list, showProject) {
   const wrap = h('div', { class: 'timeline' },
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, `Цикл ${n} · ${MONTHS_FULL[m0]} – ${MONTHS_FULL[m0 + 2]} ${y}`),
       h('div', { class: 'row' }, go('q-prev', 'Предыдущий цикл', shiftQuarter(stageQuarter, -1), '←'), go('q-now', 'Текущий цикл', quarterOf(today()), 'Сейчас'), go('q-next', 'Следующий цикл', shiftQuarter(stageQuarter, 1), '→'))),
-    h('div', { class: 'tl-scroll' }, h('div', { class: 'tl-grid' },
+    h('div', { class: 'tl-scroll', onpointerdown: pan }, h('div', { class: 'tl-grid', style: `min-width:${(innerWidth < 700 ? 130 : 200) + total * 24}px` },
       h('div', { class: 'tl-row tl-head' }, h('div', { class: 'tl-label' }),
         h('div', { class: 'tl-track', style: `grid-template-columns:repeat(${total},minmax(0,1fr))` },
           months.map(([ym, c], i) => h('div', { class: 'tl-month', style: `grid-column:${c} / ${i < 2 ? months[i + 1][1] : total + 1}` }, MONTHS_FULL[Number(ym.slice(5)) - 1])))),
       h('div', { class: 'tl-row tl-head tl-weeks' }, h('div', { class: 'tl-label' }, h('span', { class: 'hint' }, 'недели с пн')),
         h('div', { class: 'tl-track' }, mondays.map(d => h('span', { class: `tl-day${d <= today() && today() < addDays(d, 7) ? ' now' : ''}`, style: `left:${pct(d)}` }, String(Number(d.slice(8))))))),
-      shown.length ? shown.map(row) : h('div', { class: 'blank' }, 'В этом цикле этапов нет. Переключи стрелками.'))));
+      shown.length ? rows : h('div', { class: 'blank' }, 'В этом цикле этапов нет. Переключи стрелками.'))));
   return wrap;
 }
 function stageDialog(st, preset = {}) {
@@ -1128,9 +1220,10 @@ function tasksBlock(list, filter, projectId) {
   const count = h('b', { class: 'n-tasks' }), results = h('div', { class: 'results' });
   const draw = () => {
     const shown = list.filter(t => matches(t, filter));
-    count.textContent = plural(shown.length, 'задача', 'задачи', 'задач');
+    const stagesView = view === 'stages' && SHEETS;
+    count.textContent = stagesView ? plural(overviewStages(projectId, filter).length, 'этап', 'этапа', 'этапов') : plural(shown.length, 'задача', 'задачи', 'задач');
     const left = results.querySelector('.board')?.scrollLeft;
-    results.replaceChildren(view === 'calendar' ? calendar(shown, projectId === null) : board(shown, projectId === null, shownColumns(filter), add));
+    results.replaceChildren(stagesView ? stagesOverview(projectId, filter) : view === 'calendar' ? calendar(shown, projectId === null) : board(shown, projectId === null, shownColumns(filter), add));
     if (left) results.querySelector('.board')?.scrollTo({ left, behavior: 'instant' });
   };
   draw();
@@ -1140,7 +1233,7 @@ function tasksBlock(list, filter, projectId) {
       state.me.ai ? h('button', { class: 'btn', type: 'button', 'data-key': 'assistant', onclick: () => assistantDialog(projectId) }, icon('spark'), 'Помощник') : null,
       h('span', { class: 'grow' }),
       h('label', { class: 'search' }, icon('search'), h('input', { type: 'search', placeholder: 'Найти задачу', 'aria-label': 'Найти задачу', value: filter.query, 'data-key': 'search', oninput: e => { filter.query = e.target.value; draw(); } })),
-      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date')),
+      h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null),
       h('button', { class: 'btn', type: 'button', 'aria-expanded': String(filterOpen), 'data-key': 'filter', onclick: () => { filterOpen = !filterOpen; render(); } },
         icon('filter'), active.length ? `Фильтр: ${active.length}` : 'Фильтр')),
     filterOpen ? filterPanel(filter, projectId, active) : active.length ? filterSummary(filter, active) : null,
