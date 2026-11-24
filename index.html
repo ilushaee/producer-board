@@ -2,7 +2,7 @@
 <html lang="ru" data-remote>
 <head>
 <meta charset="utf-8">
-<meta name="build" content="d053641b3d2b">
+<meta name="build" content="6a411b55587b">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
@@ -863,7 +863,7 @@ async function freshPage() {
     location.reload();
   } catch { /* нет сети — работаем со старой */ }
 }
-addEventListener('visibilitychange', freshPage);
+document.addEventListener('visibilitychange', freshPage);
 setTimeout(freshPage, 3000);
 async function reload() {
   const next = fresh ?? await api('GET', '/api/state');
