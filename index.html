@@ -702,6 +702,7 @@ const $ = s => document.querySelector(s);
 const GAS = typeof google !== 'undefined' && google.script?.run ? google.script.run : null;
 const REMOTE = 'remote' in document.documentElement.dataset;
 const SHEETS = !!GAS || REMOTE;
+const STAGES = SHEETS && false;
 let backend = REMOTE ? load('backend') : null;
 let route = '#/';
 const here = () => (GAS ? route : location.hash);
@@ -927,7 +928,7 @@ function projectCard(p, sum) {
     h('div', { class: 'card-top' }, h('h2', {}, p.name), p.niche ? h('span', { class: 'pill' }, p.niche) : null),
     h('div', { class: 'card-body' },
       state.me.money ? meta('Выручка', h('b', { class: 'big' }, value(sum === null ? null : money(sum)))) : null,
-      stageNow(p.id) ? h('p', { class: 'stage-now' }, '🏁 ', stageNow(p.id)) : null,
+      STAGES && stageNow(p.id) ? h('p', { class: 'stage-now' }, '🏁 ', stageNow(p.id)) : null,
       h('p', { class: 'foot' }, list.length ? plural(list.length, 'открытая задача', 'открытые задачи', 'открытых задач') : 'Открытых задач нет',
         late ? [', ', h('span', { class: 'bad' }, `просрочено ${late}`)] : null)));
 }
@@ -939,9 +940,9 @@ function project(id) {
   const picker = monthSelect();
   const sum = revenue(id);
   const list = state.tasks.filter(t => t.project_id === id);
-  const tabs = [['tasks', 'Задачи'], ...(SHEETS ? [['stages', 'Этапы']] : []), ...(p.sheet ? [['leads', 'Лиды']] : []), ...(p.sheet && state.me.money ? [['money', 'Деньги']] : []), ...(SHEETS && state.me.money ? [['decomp', 'Декомпозиция']] : [])];
+  const tabs = [['tasks', 'Задачи'], ...(STAGES ? [['stages', 'Этапы']] : []), ...(p.sheet ? [['leads', 'Лиды']] : []), ...(p.sheet && state.me.money ? [['money', 'Деньги']] : []), ...(SHEETS && state.me.money ? [['decomp', 'Декомпозиция']] : [])];
   if (!tabs.some(([k]) => k === projectTab)) projectTab = 'tasks';
-  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'stages' ? stagesBlock(p) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
+  const body = projectTab === 'tasks' ? tasksBlock(list, filters.project, id) : projectTab === 'stages' && STAGES ? stagesBlock(p) : projectTab === 'decomp' ? decompBlock(p) : sheetPart(p, projectTab);
   return [
     hero({
       crumbs: [h('a', { href: '#/' }, 'Проекты'), ` / ${p.name}`], title: p.name, side: p.niche ?? null,
@@ -1338,7 +1339,7 @@ function tasksBlock(list, filter, projectId) {
   const count = h('span', { class: 'n-tasks' }), results = h('div', { class: 'results' });
   const draw = () => {
     const shown = list.filter(t => matches(t, filter));
-    const stagesView = view === 'stages' && SHEETS;
+    const stagesView = view === 'stages' && STAGES;
     count.textContent = stagesView ? plural(overviewStages(projectId, filter).length, 'этап', 'этапа', 'этапов') : plural(shown.length, 'задача', 'задачи', 'задач');
     const left = results.querySelector('.board')?.scrollLeft;
     results.replaceChildren(stagesView ? stagesOverview(projectId, filter) : view === 'calendar' ? calendar(shown, projectId === null) : board(shown, projectId === null, shownColumns(filter), add));
@@ -1346,7 +1347,7 @@ function tasksBlock(list, filter, projectId) {
   };
   draw();
   const bar = h('div', { class: 'tasks-bar' }, h('div', { class: 'toolbar' },
-    h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), SHEETS ? tab('stages', 'Этапы', 'date') : null),
+    h('div', { class: 'switch', role: 'group', 'aria-label': 'Вид' }, tab('board', 'Доска', 'board'), tab('calendar', 'Календарь', 'date'), STAGES ? tab('stages', 'Этапы', 'date') : null),
     h('div', { class: 'picks' },
       state.people.length ? pickFilter(filter, 'person', 'Кто', 'все', [...state.people.map(p => ({ value: p.name, label: p.name })), { value: 'none', label: 'Не назначено' }]) : null,
       projectId === null ? pickFilter(filter, 'project', 'Проект', 'все', [...state.projects.map(p => ({ value: String(p.id), label: p.name, color: projectColor(p.id) })), { value: 'none', label: 'Без проекта' }]) : null),
@@ -1443,7 +1444,7 @@ function card(t, showProject) {
       showProject && t.project_id ? h('span', { class: `proj ${projectColor(t.project_id)}` }, projectName(t.project_id)) : null),
     h('div', { class: 't' }, t.title),
     t.repeat ? h('div', { class: 'm rep' }, `🔁 ${repeatText(t.repeat)}`) : null,
-    t.stage_id && stageById(t.stage_id) ? h('div', { class: 'm stage-tag' }, `🏁 ${stageById(t.stage_id).name}`) : null,
+    STAGES && t.stage_id && stageById(t.stage_id) ? h('div', { class: 'm stage-tag' }, `🏁 ${stageById(t.stage_id).name}`) : null,
     h('div', { class: 'm' }, 'Ответственный: ', t.person ?? 'не назначен'),
     t.controller ? h('div', { class: 'm' }, 'Проверяет: ', t.controller) : null,
     t.repeat && !t.saving && SHEETS ? h('button', { class: 'btn small done-once', type: 'button', 'data-key': `once-${t.id}`, onclick: e => { e.stopPropagation(); doneOnce(t); } }, '✓ Сделано') : null,
@@ -1535,10 +1536,10 @@ const TASK_CAL = {
   kind: 'task', undated: true, addLabel: 'задачу', doneToggle: true,
   sink: t => t.status === 'done',
   name: t => t.title,
-  meta: t => [statusChip(t), personChip(t), stageChip(t), t.repeat && '🔁', t.note && '📎'].filter(Boolean),
+  meta: t => [statusChip(t), personChip(t), STAGES && stageChip(t), t.repeat && '🔁', t.note && '📎'].filter(Boolean),
   foot: (t, showProject) => (showProject && t.project_id ? projectName(t.project_id) : null),
   info: (t, name) => [t.project_id && projectName(t.project_id), name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status],
-    t.stage_id && stageById(t.stage_id) && `этап «${stageById(t.stage_id).name}»`, isLate(t) && 'просрочено'].filter(Boolean).join(', '),
+    STAGES && t.stage_id && stageById(t.stage_id) && `этап «${stageById(t.stage_id).name}»`, isLate(t) && 'просрочено'].filter(Boolean).join(', '),
   cls: t => `${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''}`,
   open: t => taskDialog(t),
   add: (d, end = d) => taskDialog(null, { project_id: pageProject(), start: d, due: end }),
@@ -1868,19 +1869,20 @@ function functionField(current) {
     h('optgroup', { label: d }, state.functions.filter(f => f.dept === d).map(f => opt(f.id, f.name))))), dept);
 }
 let tempId = 0;
-const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, ...('function_id' in f ? { function_id: f.function_id || null } : {}), person: f.person || null, ...('controller' in f ? { controller: f.controller || null } : {}), start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, stage_id: Number(f.stage_id) || null } : {}) });
+const asTask = f => ({ title: f.title.trim(), project_id: Number(f.project_id) || null, ...('function_id' in f ? { function_id: f.function_id || null } : {}), person: f.person || null, ...('controller' in f ? { controller: f.controller || null } : {}), start: f.start || null, due: f.due || null, status: f.status, ...(SHEETS ? { note: f.note?.trim() || null, repeat: f.repeat || null, ...('stage_id' in f ? { stage_id: Number(f.stage_id) || null } : {}) } : {}) });
 function taskDialog(t, preset = {}) {
   const v = t ?? preset;
   openDialog(t ? 'Задача' : 'Новая задача', [
     input('Что сделать', 'title', v.title, { required: true, maxlength: 200 }),
     SHEETS ? noteField(v.note) : null,
-    h('div', { class: SHEETS && (state.stages ?? []).length ? 'two' : '' },
-      h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
+    ...(() => {
+      const projectField = h('label', {}, 'Проект', select(projectOptions(), String(v.project_id ?? ''), { name: 'project_id', onchange: e => {
         const stage = e.target.form.elements.stage_id, st = stage && stageById(Number(stage.value));
         if (st && st.project_id !== Number(e.target.value)) stage.value = '';
-      } })),
-      SHEETS && (state.stages ?? []).length ? stageField(v.stage_id ?? '') : null),
-    h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' })),
+      } }));
+      const personField = h('label', {}, 'Ответственный', select(peopleOptions(), v.person ?? '', { name: 'person' }));
+      return STAGES && (state.stages ?? []).length ? [h('div', { class: 'two' }, projectField, stageField(v.stage_id ?? '')), personField] : [h('div', { class: 'two' }, projectField, personField)];
+    })(),
     h('div', { class: 'two' }, input('Начало', 'start', v.start, { type: 'date' }), input('Конец', 'due', v.due, { type: 'date' })),
     h('div', { class: SHEETS ? 'two status-repeat' : '' },
       h('label', {}, 'Статус', select(Object.entries(STATUS), v.status ?? 'todo', { name: 'status' })),
@@ -2365,7 +2367,7 @@ function drawShare(d) {
       meta('Открыто', h('b', { class: 'big' }, String(open.length))), meta('Просрочено', h('b', { class: late ? 'big bad' : 'big' }, String(late))),
       meta('Обновлено', h('b', {}, new Date(d.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })))] }),
     h('p', { class: 'hint share-note' }, 'Только просмотр. Страница обновляется сама раз в минуту.'),
-    (d.stages ?? []).length ? h('div', { class: 'stage-list' }, h('h3', { class: 'sub' }, 'Этапы'), d.stages.map((st, i) => {
+    STAGES && (d.stages ?? []).length ? h('div', { class: 'stage-list' }, h('h3', { class: 'sub' }, 'Этапы'), d.stages.map((st, i) => {
       const [cls, text] = stageState(st);
       const tasks = d.tasks.filter(t => t.stage_id === st.id), done = tasks.filter(t => t.status === 'done').length;
       return h('div', { class: `stage-row p${i % 6 + 1}` }, h('span', { class: 'dot' }), h('div', { class: 'stage-main' }, h('b', {}, st.name), h('span', { class: 'hint' }, datesText(st))),
