@@ -2,7 +2,7 @@
 <html lang="ru" data-remote>
 <head>
 <meta charset="utf-8">
-<meta name="build" content="6a411b55587b">
+<meta name="build" content="75419cef0284">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
@@ -856,7 +856,7 @@ async function freshPage() {
   const mine = document.querySelector('meta[name=build]')?.content;
   if (!REMOTE || !mine || document.visibilityState !== 'visible') return;
   try {
-    const text = await fetch(location.pathname, { cache: 'reload' }).then(r => r.text());
+    const text = await fetch(location.pathname + location.search, { cache: 'reload' }).then(r => r.text());
     const theirs = text.match(/<meta name="build" content="(\w+)"/)?.[1];
     if (!theirs || theirs === mine || load('reloaded-for') === theirs || unsaved || $('#dialog')?.open) return;
     store('reloaded-for', theirs);
