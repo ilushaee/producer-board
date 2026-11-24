@@ -621,6 +621,14 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
   .cal-head .row .btn { padding: 0 8px; }
   .cal-head .row .btn[data-key$=prev], .cal-head .row .btn[data-key$=next] { width: 30px; padding: 0; }
 }
+
+/* Телефон: закрепление делает скрипт (pinCheck), обычное прилипание выключаем, чтобы не мешало. */
+@media (max-width: 700px) {
+  .tasks-bar, main:has(.tasks-bar) .cal-head { position: relative; top: auto; }
+  .tasks-bar.pinned, main:has(.tasks-bar) .cal-head.pinned { position: fixed; left: 0; right: 0; margin: 0; z-index: 20; border-radius: 0; background: rgb(27, 23, 38); }
+  .tasks-bar.pinned { padding: 8px 12px; box-shadow: 0 -80px 0 0 rgb(27, 23, 38); } /* закрывает и полоску под часами */
+  main:has(.tasks-bar) .cal-head.pinned { padding: 6px 12px 8px; box-shadow: 0 8px 14px -10px rgba(0, 0, 0, .7); }
+}
 </style>
 </head>
 <body>
@@ -1344,6 +1352,7 @@ function tasksBlock(list, filter, projectId) {
   barSize.disconnect();
   barSize.observe(bar);
   return [
+    h('div', { class: 'pin-ph' }),
     bar,
     active.some(([k]) => k === 'status') ? filterSummary(filter, active.filter(([k]) => k === 'status')) : null,
     results,
@@ -1542,6 +1551,7 @@ function calendar(list, showProject, cfg = TASK_CAL) {
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
   const undated = cfg.undated ? list.filter(t => !range(t)) : [];
   return h('div', { class: 'calendar' },
+    h('div', { class: 'pin-ph' }),
     h('div', { class: 'cal-head' }, h('h3', { 'aria-live': 'polite' }, monthTitle(calMonth)),
       h('div', { class: 'row' }, doneBtn, go('cal-prev', 'Предыдущий месяц', addMonths(calMonth, -1), '←'),
         go('cal-now', 'Текущий месяц', thisMonth(), 'Сегодня'), go('cal-next', 'Следующий месяц', addMonths(calMonth, 1), '→'))),
@@ -2287,7 +2297,29 @@ function render() {
   const box = document.querySelector('.cal-scroll');
   if (box && scroll !== undefined) box.scrollLeft = scroll;
   else if (box) box.scrollLeft = (box.querySelector('.day.now')?.offsetLeft ?? 0) - 20;
+  pinCheck();
 }
+let safeTop = null;
+function pinCheck() {
+  const phone = matchMedia('(max-width: 700px)').matches;
+  if (safeTop === null) {
+    const probe = h('div', { style: 'position:fixed;top:0;visibility:hidden;padding-top:env(safe-area-inset-top)' });
+    document.body.append(probe); safeTop = probe.offsetHeight; probe.remove();
+  }
+  let top = safeTop;
+  for (const sel of ['.tasks-bar', '.calendar > .cal-head']) {
+    const el = document.querySelector(sel), ph = el?.previousElementSibling;
+    if (!el || !ph?.classList.contains('pin-ph')) continue;
+    const pin = phone && ph.getBoundingClientRect().top < top;
+    if (pin) { ph.style.height = `${el.offsetHeight}px`; el.style.top = `${top}px`; }
+    else { ph.style.height = ''; el.style.top = ''; }
+    el.classList.toggle('pinned', pin);
+    if (!pin) break; // строка месяца закрепляется только под уже закреплённой шапкой
+    top += el.offsetHeight;
+  }
+}
+addEventListener('scroll', pinCheck, { passive: true });
+addEventListener('resize', () => { safeTop = null; pinCheck(); });
 function takeLink() {
   const id = REMOTE && location.hash.match(/^#\/k\/([\w-]{20,})$/)?.[1];
   if (!id) return false;
