@@ -160,17 +160,31 @@ option, optgroup { background: var(--solid); color: var(--ink); }
 .daynum:hover { background: var(--glass-2); }
 .daynum.out { color: var(--ink-3); }
 .daynum.now { background: var(--accent); color: #fff; font-weight: 700; }
-.bar { z-index: 1; display: flex; background: var(--c); color: #17121f; align-items: center; min-width: 0; height: 26px; margin: 1px 4px 3px; padding: 0 9px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: grab; user-select: none; }
-.bar span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bar { position: relative; z-index: 1; display: flex; background: var(--c); color: #17121f; align-items: flex-start; min-width: 0; min-height: 26px; margin: 1px 4px 4px; padding: 5px 10px 6px; border-radius: 8px; font-size: 13px; font-weight: 500; line-height: 1.25; cursor: grab; user-select: none; }
+.bar-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bar-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-weight: 600; }
+.bar-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11.5px; opacity: .72; }
+.loose .bar-name { -webkit-line-clamp: 1; }
+/* Края полосы: тянешь — меняются даты. */
+.grip { position: absolute; top: 0; bottom: 0; z-index: 2; width: 10px; cursor: ew-resize; touch-action: none; }
+.grip.l { left: -2px; }
+.grip.r { right: -2px; }
+.grip::after { content: ''; position: absolute; top: 50%; width: 3px; height: 16px; margin-top: -8px; border-radius: 2px; background: rgba(23, 18, 31, .45); opacity: 0; transition: opacity .15s; }
+.grip.l::after { left: 4px; }
+.grip.r::after { right: 4px; }
+.bar:hover .grip::after { opacity: 1; }
+.day.span { background: rgba(90, 130, 255, .28); }
+body.sweeping, body.sweeping * { cursor: ew-resize !important; user-select: none; }
+.sweep-tip { position: fixed; z-index: 50; padding: 5px 10px; border-radius: 8px; background: #111; color: #fff; font-size: 13px; font-weight: 600; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
 .bar:hover { filter: brightness(1.07); }
 .bar.moving { opacity: .4; }
 .bar.done { opacity: .55; }
-.bar.done span { text-decoration: line-through; }
+.bar.done .bar-name { text-decoration: line-through; }
 .bar.cut-l { margin-left: 0; border-radius: 0 8px 8px 0; }
 .bar.cut-r { margin-right: 0; border-radius: 8px 0 0 8px; }
 .bar.cut-l.cut-r { border-radius: 0; }
 .bar.loose { max-width: 300px; margin: 0; }
-.bar.late::before { content: '!'; flex: none; display: grid; place-items: center; width: 16px; height: 16px; margin: 0 7px 0 -3px; border-radius: 50%; background: #b3122f; color: #fff; font-size: 11px; font-weight: 800; }
+.bar.late::before { content: '!'; flex: none; display: grid; place-items: center; width: 16px; height: 16px; margin: 1px 7px 0 -3px; border-radius: 50%; background: #b3122f; color: #fff; font-size: 11px; font-weight: 800; }
 .undated { margin-top: 22px; }
 .undated h3 { margin: 0; font-size: 15px; }
 .undated .chips { margin-top: 10px; }
@@ -854,11 +868,12 @@ function stageNow(pid) {
 }
 const stageCal = pid => ({
   kind: 'stage', undated: false, addLabel: 'этап',
-  name: (st, showProject) => (showProject ? `${projectName(st.project_id)}: ${st.name}` : st.name),
+  name: st => st.name,
   info: (st, name) => [name, datesText(st), stageState(st)[1]].join(', '),
   cls: (st, showProject) => `${showProject ? projectColor(st.project_id) : stageColor(st)}${st.done ? ' done' : ''}${stageLate(st) ? ' late' : ''}`,
   open: st => stageDialog(st),
-  add: pid && state.me.owner ? d => stageDialog(null, { project_id: pid, start: d, due: d }) : null,
+  add: pid && state.me.owner ? (d, end = d) => stageDialog(null, { project_id: pid, start: d, due: end }) : null,
+  meta: (st, showProject) => [showProject && projectName(st.project_id), stageState(st)[1]].filter(Boolean).join(' · '),
 });
 function stagesBlock(p) {
   const list = projectStages(p.id);
@@ -1262,11 +1277,14 @@ function moveCard(id, status, before) {
 }
 const TASK_CAL = {
   kind: 'task', undated: true, addLabel: 'задачу',
-  name: (t, showProject) => (showProject && t.project_id ? `${projectName(t.project_id)}: ${t.title}` : t.title),
-  info: (t, name) => [name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status], isLate(t) && 'просрочено'].filter(Boolean).join(', '),
+  name: t => t.title,
+  meta: (t, showProject) => [showProject && t.project_id && projectName(t.project_id), t.person ?? 'без ответственного',
+    t.status !== 'todo' && STATUS[t.status], t.repeat && '🔁', t.note && '📎'].filter(Boolean).join(' · '),
+  info: (t, name) => [t.project_id && projectName(t.project_id), name, fnOf(t)?.dept, t.person, datesText(t), STATUS[t.status],
+    t.stage_id && stageById(t.stage_id) && `этап «${stageById(t.stage_id).name}»`, isLate(t) && 'просрочено'].filter(Boolean).join(', '),
   cls: t => `${projectColor(t.project_id)}${t.status === 'done' ? ' done' : ''}${isLate(t) ? ' late' : ''}`,
   open: t => taskDialog(t),
-  add: d => taskDialog(null, { project_id: pageProject(), start: d, due: d }),
+  add: (d, end = d) => taskDialog(null, { project_id: pageProject(), start: d, due: end }),
 };
 function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
@@ -1291,13 +1309,13 @@ function week(days, list, showProject, cfg) {
   };
   const cells = days.map((d, i) => h('div', {
     class: `day${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, 'data-day': d, style: `grid-column:${i + 1};grid-row:1/-1`,
-    onclick: cfg.add ? () => cfg.add(d) : null,
+    onpointerdown: cfg.add ? e => pickDays(e, d, cfg) : null,
   }));
   const numbers = days.map((d, i) => h(cfg.add ? 'button' : 'span', {
     class: `daynum${d.startsWith(calMonth) ? '' : ' out'}${d === today() ? ' now' : ''}`, type: cfg.add ? 'button' : null, style: `grid-column:${i + 1};grid-row:1`, 'data-key': `day-${d}`,
     'aria-label': cfg.add ? `Добавить ${cfg.addLabel} на ${dayText(d)}` : null, onclick: cfg.add ? () => cfg.add(d) : null,
   }, String(Number(d.slice(8)))));
-  const el = h('div', { class: 'week', style: `grid-template-rows:34px ${'30px '.repeat(lanes)}minmax(14px,1fr)`,
+  const el = h('div', { class: 'week', style: `grid-template-rows:34px ${'auto '.repeat(lanes)}minmax(14px,1fr)`,
     ondragenter: accept,
     ondragover: e => {
       if (!dragged) return;
@@ -1313,18 +1331,71 @@ function week(days, list, showProject, cfg) {
       const r = b.getBoundingClientRect();
       const inside = Math.min(s.span - 1, Math.max(0, Math.floor((e.clientX - r.left) / r.width * s.span)));
       return diffDays(range(s.task).start, days[s.col + inside]);
-    }, cfg);
+    }, cfg, { l: s.first, r: s.last });
     b.style.gridColumn = `${s.col + 1} / span ${s.span}`;
     b.style.gridRow = String(s.lane + 2);
     return b;
   }));
   return el;
 }
-function bar(t, showProject, cls, grabbed, cfg = TASK_CAL) {
-  const name = cfg.name(t, showProject), full = cfg.info(t, name);
+function bar(t, showProject, cls, grabbed, cfg = TASK_CAL, edges = null) {
+  const name = cfg.name(t, showProject), full = cfg.info(t, name), meta = cfg.meta?.(t, showProject);
   const move = cfg.kind === 'task' || state.me.owner;
+  const grips = move && edges && !t.saving;
   return h('div', { class: `bar ${cfg.cls(t, showProject)} ${cls}`, title: full, 'aria-label': full, 'data-key': `${cfg.kind[0]}${t.id}`,
-    ...(t.saving ? {} : { ...opens(() => cfg.open(t)), ...(move ? draggable(t, grabbed, cfg.kind) : {}) }) }, h('span', {}, name));
+    ...(t.saving ? {} : { ...opens(() => cfg.open(t)), ...(move ? draggable(t, grabbed, cfg.kind) : {}) }) },
+    grips && edges.l ? grip(t, cfg, 'start') : null,
+    h('span', { class: 'bar-text' }, h('span', { class: 'bar-name' }, name), meta ? h('span', { class: 'bar-meta' }, meta) : null),
+    grips && edges.r ? grip(t, cfg, 'due') : null);
+}
+function sweep(e, from, change, done) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const handle = e.currentTarget, dragHost = handle.closest('[draggable]');
+  if (dragHost) dragHost.draggable = false; // иначе браузер начнёт перетаскивать всю полосу
+  try { handle.setPointerCapture(e.pointerId); } catch {}
+  document.body.classList.add('sweeping');
+  const tip = h('div', { class: 'sweep-tip', role: 'status' });
+  document.body.append(tip);
+  let dates = change(from);
+  const paint = ev => {
+    document.querySelectorAll('.day.span').forEach(c => c.classList.remove('span'));
+    document.querySelectorAll('.calendar .day[data-day]').forEach(c => { if (c.dataset.day >= dates.start && c.dataset.day <= dates.due) c.classList.add('span'); });
+    tip.textContent = datesText(dates.start === dates.due ? { due: dates.due, start: dates.due } : dates);
+    if (ev) { tip.style.left = `${ev.clientX + 14}px`; tip.style.top = `${ev.clientY + 16}px`; }
+  };
+  const dayUnder = ev => document.elementsFromPoint(ev.clientX, ev.clientY).find(x => x.matches?.('.calendar .day[data-day]'))?.dataset.day;
+  const move = ev => { const d = dayUnder(ev); if (d) dates = change(d); paint(ev); };
+  const stop = ev => {
+    removeEventListener('pointermove', move);
+    removeEventListener('pointerup', stop);
+    removeEventListener('pointercancel', stop);
+    document.querySelectorAll('.day.span').forEach(c => c.classList.remove('span'));
+    document.body.classList.remove('sweeping');
+    tip.remove();
+    if (dragHost) dragHost.draggable = true;
+    if (ev.type === 'pointerup') done(dates);
+  };
+  addEventListener('pointermove', move);
+  addEventListener('pointerup', stop);
+  addEventListener('pointercancel', stop);
+  paint(e);
+}
+function grip(t, cfg, side) {
+  return h('span', { class: `grip ${side === 'start' ? 'l' : 'r'}`, 'aria-hidden': 'true', title: side === 'start' ? 'Потяни, чтобы сдвинуть начало' : 'Потяни, чтобы сдвинуть срок',
+    onclick: e => e.stopPropagation(),
+    onpointerdown: e => {
+      const r = range(t);
+      if (!r) return;
+      sweep(e, side === 'start' ? r.start : r.end,
+        d => (side === 'start' ? { start: d < r.end ? d : r.end, due: r.end } : { start: r.start, due: d > r.start ? d : r.start }),
+        dates => { if (dates.start !== t.start || dates.due !== t.due) setDates(cfg.kind, t.id, dates); });
+    } });
+}
+function pickDays(e, day, cfg) {
+  if (e.pointerType === 'touch') { e.currentTarget.onclick = () => cfg.add(day); return; } // на телефоне палец листает, поэтому только нажатие
+  sweep(e, day, d => (d < day ? { start: d, due: day } : { start: day, due: d }), dates => cfg.add(dates.start, dates.due));
 }
 function clearTarget() { document.querySelector('.day.target')?.classList.remove('target'); }
 function moveDates({ id, grabbed, kind }, day) {
@@ -1335,16 +1406,28 @@ function moveDates({ id, grabbed, kind }, day) {
   if (!t) return;
   const dates = moveTo(t, day, grabbed);
   if (dates.start === t.start && dates.due === t.due) return;
+  setDates('task', id, dates, 'Перенёс');
+}
+function setDates(kind, id, dates, verb = 'Теперь') {
+  if (kind === 'stage') {
+    const st = stageById(id);
+    if (!st) return;
+    background(() => Object.assign(st, dates), () => api('PATCH', `/api/stages/${id}`, dates));
+    toast(`Этап «${st.name}»: ${datesText(dates)}`);
+    return;
+  }
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
   if (SHEETS) {
     background(() => Object.assign(t, dates), () => api('PATCH', `/api/tasks/${id}`, dates));
-    toast(`Перенёс: ${datesText(dates)}`);
+    toast(`${verb}: ${datesText(dates)}`);
     return;
   }
   Object.assign(t, dates);
   render();
   attempt(async () => {
     try { await api('PATCH', `/api/tasks/${id}`, dates); } finally { await reload(); }
-    toast(`Перенёс: ${datesText(dates)}`);
+    toast(`${verb}: ${datesText(dates)}`);
   });
 }
 const pageProject = () => Number(here().match(/^#\/p\/(\d+)$/)?.[1]) || null;
