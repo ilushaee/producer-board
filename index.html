@@ -637,8 +637,8 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
 }
 
 /* Окно задачи: название и описание — по две строки. */
-dialog label textarea.title-area { min-height: 0; height: calc(2 * 1.35em + 22px); resize: none; line-height: 1.35; }
-dialog label textarea.note-line { min-height: calc(2 * 1.35em + 22px); line-height: 1.35; }
+dialog label textarea.title-area { display: block; min-height: 68px; height: 68px; resize: none; line-height: 22px; -webkit-appearance: none; appearance: none; }
+dialog label textarea.note-line { display: block; min-height: 68px; line-height: 22px; -webkit-appearance: none; appearance: none; }
 </style>
 </head>
 <body>
