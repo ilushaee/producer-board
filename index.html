@@ -519,6 +519,17 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; user-select: none;
 .tl-scroll { cursor: grab; scroll-behavior: auto; }
 .tl-scroll.panning { cursor: grabbing; user-select: none; }
 .tl-label { cursor: pointer; }
+/* Шапка календаря едет за тобой при прокрутке: месяц с кнопками и дни недели. */
+.cal-head { position: sticky; top: 0; z-index: 6; min-height: 64px; margin: 0 -8px 4px; padding: 8px 8px; background: rgba(27, 23, 38, .96); backdrop-filter: blur(8px); border-radius: 0 0 16px 16px; }
+@media (min-width: 900px) {
+  .cal-scroll { overflow: visible; }
+  .cal-days { position: sticky; top: 64px; z-index: 5; border-radius: 12px 12px 0 0; background: #24202f; box-shadow: 0 6px 12px -8px rgba(0, 0, 0, .6); }
+}
+/* Ровные карточки: под название всегда две строки, проект прижат к низу. */
+.bar-text { flex: 1; align-self: stretch; }
+.bar-name { min-height: calc(2 * 1.25em); }
+.bar-foot { margin-top: auto; }
+.loose .bar-name { min-height: 0; }
 </style>
 </head>
 <body>
@@ -1435,7 +1446,7 @@ function calendar(list, showProject, cfg = TASK_CAL) {
   calMonth ??= thisMonth();
   const doneCount = cfg.doneToggle ? list.filter(t => t.status === 'done').length : 0;
   if (cfg.doneToggle && hideDone) list = list.filter(t => t.status !== 'done');
-  const doneBtn = cfg.doneToggle ? h('button', { class: `btn${hideDone ? '' : ' on'}`, type: 'button', 'data-key': 'cal-done', 'aria-pressed': String(!hideDone),
+  const doneBtn = cfg.doneToggle ? h('button', { class: 'btn', type: 'button', 'data-key': 'cal-done', 'aria-pressed': String(!hideDone),
     onclick: () => { hideDone = !hideDone; store('cal-hide-done', hideDone ? '1' : '0'); render(); } },
     hideDone ? `Показать готовые${doneCount ? ` (${doneCount})` : ''}` : 'Скрыть готовые') : null;
   const go = (key, label, ym, text) => h('button', { class: 'btn', type: 'button', 'data-key': key, 'aria-label': label, onclick: () => { calMonth = ym; render(); } }, text);
